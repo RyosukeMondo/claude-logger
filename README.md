@@ -6,62 +6,54 @@
  ╚═╝╩═╝╩ ╩╚═╝═╩╝╚═╝  ╩═╝╚═╝╚═╝╚═╝╚═╝╩╚═
 ```
 
-REST API receiver and visualizer for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) hook events. Records all chat history, tool usage, and session activity. Share sessions with others via link.
+Record and visualize all [Claude Code](https://docs.anthropic.com/en/docs/claude-code) activity — prompts, tool calls, sessions — via hooks. Terminal-themed dashboard with session sharing.
 
-## Quick Start
+**Dashboard**: https://mondo-ai-studio.xvps.jp/claude-logger
 
-```bash
-npm install
-npm run dev        # starts on http://localhost:8111
-```
+## Connect Any Project in 30 Seconds
 
-## Setting Up Hooks
-
-Claude Code hooks send HTTP POST events to claude-logger whenever Claude acts. You choose **where** to put the config to control scope:
-
-| Scope | File | Effect |
-|-------|------|--------|
-| **Global** | `~/.claude/settings.json` | All projects, all sessions |
-| **Project** | `<repo>/.claude/settings.json` | One repo (committed to git) |
-| **Local** | `<repo>/.claude/settings.local.json` | One repo (gitignored) |
-
-### Per-Project Setup (Recommended)
-
-Create `.claude/settings.local.json` in any repo you want to log:
+Create `.claude/settings.local.json` in the project you want to log:
 
 ```json
 {
   "hooks": {
-    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "Notification":       [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "Stop":               [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }]
+    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "Notification":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "Stop":               [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }]
   }
 }
 ```
 
-A complete example is in [`hooks-config-example.json`](./hooks-config-example.json).
+Then restart Claude Code. All activity from that project will appear on the dashboard.
 
-### Selective Hooks
+> **Tip**: You can paste this into Claude Code instead:
+> *"Please setup hooks for this project to POST to https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks — create `.claude/settings.local.json` with all hook events."*
+
+## Hook Scope Options
+
+| Scope | File | Effect |
+|-------|------|--------|
+| **Local** | `<repo>/.claude/settings.local.json` | One repo, gitignored (recommended) |
+| **Project** | `<repo>/.claude/settings.json` | One repo, committed to git |
+| **Global** | `~/.claude/settings.json` | All projects, all sessions |
+
+## Selective Hooks
 
 You don't need all events. Pick what you care about:
 
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }],
-    "Stop":             [{ "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }]
+    "UserPromptSubmit": [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "Stop":             [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }]
   }
 }
 ```
-
-### Activating
-
-Hooks take effect on the **next Claude Code session**. After saving the config, restart Claude Code (exit and reopen).
 
 ## Hook Events Reference
 
@@ -76,63 +68,79 @@ Hooks take effect on the **next Claude Code session**. After saving the config, 
 | `Notification` | Permission prompts, idle notifications |
 | `Stop` | Claude finishes a response |
 
-## Usage
+## Self-Hosting
 
-### Web Dashboard
+To run your own instance instead of using the hosted version:
+
+### Requirements
+
+- Node.js 22+
+- PostgreSQL 16+
+
+### Setup
 
 ```bash
-npm run dev    # http://localhost:8111
+git clone https://github.com/RyosukeMondo/claude-logger.git
+cd claude-logger
+cp .env.example .env       # edit DATABASE_URL and BASE_PATH
+npm install
+npm run dev                 # http://localhost:8111
 ```
 
-- `/` — Dashboard with session list, stats, tool usage bars
-- `/sessions/:id` — Session timeline with event-by-event view
-- `/share/:id` — Shareable public link
-
-### CLI
+### Docker
 
 ```bash
-npm run cli -- sessions           # list all sessions
-npm run cli -- session <id>       # show session detail
-npm run cli -- events <session-id> # show event timeline
-npm run cli -- stats              # aggregate stats
-npm run cli -- share <session-id>  # create share link
+docker compose up -d       # requires PostgreSQL on the same Docker network
 ```
 
-### REST API
+See `docker-compose.yml` and `.env.example` for configuration.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://localhost:5432/claude_logger` |
+| `BASE_PATH` | URL prefix for reverse proxy (e.g. `/claude-logger`) | *(empty)* |
+
+## REST API
 
 ```bash
+# Hook receiver (Claude Code POSTs here)
+POST /api/hooks
+
 # Data endpoints
-curl http://localhost:8111/api/sessions
-curl http://localhost:8111/api/sessions/<id>
-curl http://localhost:8111/api/sessions/<id>/events
-curl http://localhost:8111/api/stats
+GET  /api/sessions
+GET  /api/sessions/:id
+GET  /api/sessions/:id/events
+GET  /api/stats
+GET  /api/users
+POST /api/sessions/:id/share
 
-# Screen-as-JSON (returns exactly what the UI renders)
-curl http://localhost:8111/api/views/dashboard
-curl http://localhost:8111/api/views/session/<id>
-curl http://localhost:8111/api/views/share/<id>
-
-# Create share link
-curl -X POST http://localhost:8111/api/sessions/<id>/share
+# Screen-as-JSON (returns exactly what the UI renders — useful for testing)
+GET  /api/views/dashboard
+GET  /api/views/session/:id
+GET  /api/views/share/:id
 ```
 
-## Testing
+## CLI
 
 ```bash
-npm test           # run all tests
-npm run test:watch # watch mode
+npm run cli -- users                # list all users
+npm run cli -- sessions [--user X]  # list sessions
+npm run cli -- session <id>         # session detail
+npm run cli -- events <session-id>  # event timeline
+npm run cli -- stats [--user X]     # aggregate stats
+npm run cli -- share <session-id>   # create share link
 ```
 
 ## Architecture
 
 ```
-src/lib/           Pure business logic (no framework deps)
+src/lib/           Pure business logic (framework-free, testable via CLI)
 src/app/api/       Next.js API routes
-src/app/api/views/ Screen-as-JSON endpoints for testing
+src/app/api/views/ Screen-as-JSON endpoints for frontend verification
 src/app/           Server-rendered pages
 src/components/    React components (terminal theme)
 src/cli/           CLI tool (same lib, no server needed)
 tests/             Vitest unit tests against lib layer
 ```
-
-All business logic lives in `src/lib/` and is shared by the web app, API, and CLI. The views API (`/api/views/*`) returns the exact data each page renders, making frontend behavior fully testable via REST.

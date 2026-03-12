@@ -1,34 +1,19 @@
 {
-  "_comment": "Copy the 'hooks' block into one of the locations below depending on desired scope",
-  "_locations": {
-    "global":  "~/.claude/settings.json           (all projects)",
-    "project": "<repo>/.claude/settings.json       (this repo, committable)",
-    "local":   "<repo>/.claude/settings.local.json (this repo, gitignored)"
+  "_comment": "Copy the 'hooks' block into .claude/settings.local.json in any project you want to log",
+  "_endpoint": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks",
+  "_scopes": {
+    "local":   "<repo>/.claude/settings.local.json  (one repo, gitignored — recommended)",
+    "project": "<repo>/.claude/settings.json         (one repo, committed to git)",
+    "global":  "~/.claude/settings.json              (all projects)"
   },
   "hooks": {
-    "SessionStart": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "SessionEnd": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "UserPromptSubmit": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "PreToolUse": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "PostToolUse": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "PostToolUseFailure": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "Notification": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ],
-    "Stop": [
-      { "hooks": [{ "type": "http", "url": "http://localhost:8111/api/hooks" }] }
-    ]
+    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "Notification":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
+    "Stop":               [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }]
   }
 }
