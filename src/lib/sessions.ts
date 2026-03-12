@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import type { Session, Stats } from "./types";
+import { toLocalIso } from "./time";
 
 /** List distinct usernames. */
 export async function listUsers(pool: Pool): Promise<string[]> {
@@ -87,7 +88,7 @@ export async function getStats(pool: Pool, username?: string): Promise<Stats> {
     tool_usage: toolRes.rows.map((r) => ({ name: r.tool_name, count: r.count })),
     recent_activity: recentRes.rows.map((r) => ({
       ...r,
-      timestamp: typeof r.timestamp === "string" ? r.timestamp : r.timestamp?.toISOString?.() ?? "",
+      timestamp: r.timestamp ? toLocalIso(r.timestamp) : "",
     })),
   };
 }
@@ -97,8 +98,8 @@ function toSession(r: Record<string, unknown>): Session {
     id: r.id as string,
     username: (r.username as string) ?? "",
     project_dir: (r.project_dir as string) ?? "",
-    started_at: r.started_at ? toIso(r.started_at) : null,
-    ended_at: r.ended_at ? toIso(r.ended_at) : null,
+    started_at: r.started_at ? toLocalIso(r.started_at) : null,
+    ended_at: r.ended_at ? toLocalIso(r.ended_at) : null,
     permission_mode: (r.permission_mode as string) ?? null,
     event_count: (r.event_count as number) ?? 0,
     prompt_count: (r.prompt_count as number) ?? 0,
@@ -106,8 +107,3 @@ function toSession(r: Record<string, unknown>): Session {
   };
 }
 
-function toIso(v: unknown): string {
-  if (typeof v === "string") return v;
-  if (v instanceof Date) return v.toISOString();
-  return String(v);
-}

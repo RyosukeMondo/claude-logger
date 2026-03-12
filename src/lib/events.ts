@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import type { HookEvent, EventRecord } from "./types";
 import { extractUsername } from "./db";
 import { buildSummary } from "./summary";
+import { toLocalIso } from "./time";
 
 /** Record a hook event. Upserts session, inserts event, returns event ID. */
 export async function recordEvent(pool: Pool, event: HookEvent): Promise<number> {
@@ -96,7 +97,7 @@ export async function getEvents(
     hook_event_name: r.hook_event_name,
     tool_name: r.tool_name ?? null,
     summary: r.summary ?? "",
-    timestamp: typeof r.timestamp === "string" ? r.timestamp : r.timestamp?.toISOString?.() ?? "",
+    timestamp: r.timestamp ? toLocalIso(r.timestamp) : "",
     payload: typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
   }));
 }

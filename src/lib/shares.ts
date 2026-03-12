@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import type { Pool } from "pg";
 import type { Share } from "./types";
+import { formatLocal, toLocalIso } from "./time";
 
 /** Create a share link for a session. */
 export async function createShare(
@@ -9,10 +10,10 @@ export async function createShare(
   days = 7
 ): Promise<Share> {
   const id = crypto.randomBytes(6).toString("hex");
-  const now = new Date().toISOString();
-  const expires = new Date(
+  const now = formatLocal(new Date());
+  const expires = formatLocal(new Date(
     Date.now() + days * 24 * 60 * 60 * 1000
-  ).toISOString();
+  ));
 
   await pool.query(
     "INSERT INTO shares (id, session_id, created_at, expires_at) VALUES ($1, $2, $3, $4)",
@@ -39,9 +40,7 @@ export async function getShare(
   return {
     id: row.id,
     session_id: row.session_id,
-    created_at: typeof row.created_at === "string" ? row.created_at : row.created_at?.toISOString?.() ?? "",
-    expires_at: row.expires_at
-      ? typeof row.expires_at === "string" ? row.expires_at : row.expires_at?.toISOString?.() ?? ""
-      : null,
+    created_at: row.created_at ? toLocalIso(row.created_at) : "",
+    expires_at: row.expires_at ? toLocalIso(row.expires_at) : null,
   };
 }
