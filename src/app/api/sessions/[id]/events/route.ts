@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/sessions";
 import { getEvents } from "@/lib/events";
 
@@ -10,12 +10,12 @@ export async function GET(
   const { id } = await params;
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get("limit") ?? 500);
-  const db = getDb();
+  const pool = await getPool();
 
-  const session = getSession(db, id);
+  const session = await getSession(pool, id);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  return NextResponse.json(getEvents(db, id, limit));
+  return NextResponse.json(await getEvents(pool, id, limit));
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { listSessions } from "@/lib/sessions";
 
 export async function GET(request: Request) {
@@ -8,6 +8,6 @@ export async function GET(request: Request) {
   const offset = Number(url.searchParams.get("offset") ?? 0);
   const user = url.searchParams.get("user") ?? undefined;
 
-  const db = getDb();
-  return NextResponse.json(listSessions(db, limit, offset, user));
+  const pool = await getPool();
+  return NextResponse.json(await listSessions(pool, limit, offset, user));
 }

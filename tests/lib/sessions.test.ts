@@ -1,125 +1,109 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import type Database from "better-sqlite3";
-import { openDb } from "@/lib/db";
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
+import type { Pool } from "pg";
+import { createPool, initSchema } from "@/lib/db";
 import { recordEvent } from "@/lib/events";
 import { listUsers, listSessions, getSession, getStats } from "@/lib/sessions";
-import { tmpdir } from "os";
-import { join } from "path";
-import { randomBytes } from "crypto";
 
-function tmpDb(): Database.Database {
-  return openDb(join(tmpdir(), `claude-logger-test-${randomBytes(8).toString("hex")}.db`));
-}
+const TEST_URL = process.env.TEST_DATABASE_URL ?? "postgresql://localhost:5432/claude_logger_test";
+let pool: Pool;
 
-describe("listSessions", () => {
-  let db: Database.Database;
+beforeAll(async () => {
+  pool = createPool(TEST_URL);
+  await initSchema(pool);
+});
 
-  beforeEach(() => {
-    db = tmpDb();
-  });
+beforeEach(async () => {
+  await pool.query("TRUNCATE events, shares, sessions CASCADE");
+});
 
-  it("returns empty list when no sessions", () => {
-    expect(listSessions(db)).toEqual([]);
-  });
-
-  it("returns sessions ordered by started_at desc", () => {
-    recordEvent(db, { session_id: "s1", hook_event_name: "SessionStart", cwd: "/a" });
-    recordEvent(db, { session_id: "s2", hook_event_name: "SessionStart", cwd: "/b" });
-
-    const sessions = listSessions(db);
-    expect(sessions).toHaveLength(2);
-    // s2 was started after s1
-    expect(sessions[0].id).toBe("s2");
-  });
-
-  it("respects limit and offset", () => {
-    for (let i = 0; i < 5; i++) {
-      recordEvent(db, { session_id: `s${i}`, hook_event_name: "SessionStart" });
-    }
-
-    const page = listSessions(db, 2, 2);
-    expect(page).toHaveLength(2);
-  });
+afterAll(async () => {
+  await pool.end();
 });
 
 describe("listUsers", () => {
-  let db: Database.Database;
-
-  beforeEach(() => {
-    db = tmpDb();
+  it("returns empty list when no sessions", async () => {
+    expect(await listUsers(pool)).toEqual([]);
   });
 
-  it("returns empty list when no sessions", () => {
-    expect(listUsers(db)).toEqual([]);
-  });
+  it("returns distinct usernames", async () => {
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "SessionStart", cwd: "/home/alice/proj" });
+    await recordEvent(pool, { session_id: "s2", hook_event_name: "SessionStart", cwd: "/home/bob/proj" });
+    await recordEvent(pool, { session_id: "s3", hook_event_name: "SessionStart", cwd: "/home/alice/other" });
 
-  it("returns distinct usernames", () => {
-    recordEvent(db, { session_id: "s1", hook_event_name: "SessionStart", cwd: "/home/alice/proj" });
-    recordEvent(db, { session_id: "s2", hook_event_name: "SessionStart", cwd: "/home/bob/proj" });
-    recordEvent(db, { session_id: "s3", hook_event_name: "SessionStart", cwd: "/home/alice/other" });
-
-    const users = listUsers(db);
+    const users = await listUsers(pool);
     expect(users).toEqual(["alice", "bob"]);
   });
 });
 
 describe("listSessions with user filter", () => {
-  let db: Database.Database;
-
-  beforeEach(() => {
-    db = tmpDb();
-    recordEvent(db, { session_id: "s1", hook_event_name: "SessionStart", cwd: "/home/alice/proj" });
-    recordEvent(db, { session_id: "s2", hook_event_name: "SessionStart", cwd: "/home/bob/proj" });
+  beforeEach(async () => {
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "SessionStart", cwd: "/home/alice/proj" });
+    await recordEvent(pool, { session_id: "s2", hook_event_name: "SessionStart", cwd: "/home/bob/proj" });
   });
 
-  it("filters by username", () => {
-    const sessions = listSessions(db, 50, 0, "alice");
+  it("filters by username", async () => {
+    const sessions = await listSessions(pool, 50, 0, "alice");
     expect(sessions).toHaveLength(1);
     expect(sessions[0].username).toBe("alice");
   });
 
-  it("returns all when no filter", () => {
-    expect(listSessions(db)).toHaveLength(2);
+  it("returns all when no filter", async () => {
+    expect(await listSessions(pool)).toHaveLength(2);
   });
 });
 
 describe("getStats with user filter", () => {
-  let db: Database.Database;
-
-  beforeEach(() => {
-    db = tmpDb();
-    recordEvent(db, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash", cwd: "/home/alice/p" });
-    recordEvent(db, { session_id: "s2", hook_event_name: "PreToolUse", tool_name: "Read", cwd: "/home/bob/p" });
+  beforeEach(async () => {
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash", cwd: "/home/alice/p" });
+    await recordEvent(pool, { session_id: "s2", hook_event_name: "PreToolUse", tool_name: "Read", cwd: "/home/bob/p" });
   });
 
-  it("filters stats by user", () => {
-    const stats = getStats(db, "alice");
+  it("filters stats by user", async () => {
+    const stats = await getStats(pool, "alice");
     expect(stats.total_sessions).toBe(1);
     expect(stats.total_events).toBe(1);
     expect(stats.tool_usage).toEqual([{ name: "Bash", count: 1 }]);
   });
 });
 
+describe("listSessions", () => {
+  it("returns empty list when no sessions", async () => {
+    expect(await listSessions(pool)).toEqual([]);
+  });
+
+  it("returns sessions ordered by started_at desc", async () => {
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "SessionStart", cwd: "/a" });
+    await recordEvent(pool, { session_id: "s2", hook_event_name: "SessionStart", cwd: "/b" });
+
+    const sessions = await listSessions(pool);
+    expect(sessions).toHaveLength(2);
+    expect(sessions[0].id).toBe("s2");
+  });
+
+  it("respects limit and offset", async () => {
+    for (let i = 0; i < 5; i++) {
+      await recordEvent(pool, { session_id: `s${i}`, hook_event_name: "SessionStart" });
+    }
+
+    const page = await listSessions(pool, 2, 2);
+    expect(page).toHaveLength(2);
+  });
+});
+
 describe("getSession", () => {
-  let db: Database.Database;
-
-  beforeEach(() => {
-    db = tmpDb();
+  it("returns null for unknown session", async () => {
+    expect(await getSession(pool, "nonexistent")).toBeNull();
   });
 
-  it("returns null for unknown session", () => {
-    expect(getSession(db, "nonexistent")).toBeNull();
-  });
-
-  it("returns session with correct fields", () => {
-    recordEvent(db, {
+  it("returns session with correct fields", async () => {
+    await recordEvent(pool, {
       session_id: "s1",
       hook_event_name: "SessionStart",
       cwd: "/home/user/project",
       permission_mode: "default",
     });
 
-    const s = getSession(db, "s1");
+    const s = await getSession(pool, "s1");
     expect(s).not.toBeNull();
     expect(s!.id).toBe("s1");
     expect(s!.project_dir).toBe("/home/user/project");
@@ -128,25 +112,19 @@ describe("getSession", () => {
 });
 
 describe("getStats", () => {
-  let db: Database.Database;
-
-  beforeEach(() => {
-    db = tmpDb();
-  });
-
-  it("returns zero stats for empty db", () => {
-    const stats = getStats(db);
+  it("returns zero stats for empty db", async () => {
+    const stats = await getStats(pool);
     expect(stats.total_sessions).toBe(0);
     expect(stats.total_events).toBe(0);
     expect(stats.tool_usage).toEqual([]);
   });
 
-  it("counts tool usage correctly", () => {
-    recordEvent(db, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash" });
-    recordEvent(db, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash" });
-    recordEvent(db, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Read" });
+  it("counts tool usage correctly", async () => {
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash" });
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash" });
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Read" });
 
-    const stats = getStats(db);
+    const stats = await getStats(pool);
     expect(stats.total_events).toBe(3);
     expect(stats.tool_usage).toEqual([
       { name: "Bash", count: 2 },
@@ -154,10 +132,10 @@ describe("getStats", () => {
     ]);
   });
 
-  it("includes recent activity", () => {
-    recordEvent(db, { session_id: "s1", hook_event_name: "UserPromptSubmit", prompt: "hello" });
+  it("includes recent activity", async () => {
+    await recordEvent(pool, { session_id: "s1", hook_event_name: "UserPromptSubmit", prompt: "hello" });
 
-    const stats = getStats(db);
+    const stats = await getStats(pool);
     expect(stats.recent_activity).toHaveLength(1);
     expect(stats.recent_activity[0].hook_event_name).toBe("UserPromptSubmit");
   });

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/sessions";
 import { getEvents } from "@/lib/events";
 import { getShare } from "@/lib/shares";
@@ -13,14 +13,14 @@ export default async function SharePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const db = getDb();
-  const share = getShare(db, id);
+  const pool = await getPool();
+  const share = await getShare(pool, id);
   if (!share) notFound();
 
-  const session = getSession(db, share.session_id);
+  const session = await getSession(pool, share.session_id);
   if (!session) notFound();
 
-  const events = getEvents(db, share.session_id);
+  const events = await getEvents(pool, share.session_id);
 
   return (
     <>

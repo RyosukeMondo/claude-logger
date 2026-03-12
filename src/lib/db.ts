@@ -1,15 +1,12 @@
-import Database from "better-sqlite3";
-import fs from "fs";
-import os from "os";
-import path from "path";
+import { Pool } from "pg";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL DEFAULT '',
   project_dir TEXT NOT NULL DEFAULT '',
-  started_at TEXT,
-  ended_at TEXT,
+  started_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
   permission_mode TEXT,
   event_count INTEGER DEFAULT 0,
   prompt_count INTEGER DEFAULT 0,
@@ -17,22 +14,20 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE TABLE IF NOT EXISTS events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  session_id TEXT NOT NULL,
+  id SERIAL PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id),
   hook_event_name TEXT NOT NULL,
   tool_name TEXT,
   summary TEXT DEFAULT '',
-  timestamp TEXT NOT NULL,
-  payload TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (session_id) REFERENCES sessions(id)
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  payload JSONB NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS shares (
   id TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  expires_at TEXT,
-  FOREIGN KEY (session_id) REFERENCES sessions(id)
+  session_id TEXT NOT NULL REFERENCES sessions(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
@@ -41,38 +36,38 @@ CREATE INDEX IF NOT EXISTS idx_shares_session ON shares(session_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username);
 `;
 
-const MIGRATIONS = [
-  `ALTER TABLE sessions ADD COLUMN username TEXT NOT NULL DEFAULT ''`,
-];
-
-
-function defaultDbPath(): string {
-  return (
-    process.env.CLAUDE_LOGGER_DB ??
-    path.join(os.homedir(), ".claude-logger", "events.db")
-  );
+function defaultUrl(): string {
+  return process.env.DATABASE_URL ?? "postgresql://localhost:5432/claude_logger";
 }
 
-/** Open (or create) the database and return the connection. */
-export function openDb(dbPath?: string): Database.Database {
-  const p = dbPath ?? defaultDbPath();
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  const db = new Database(p);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  runMigrations(db);
-  db.exec(SCHEMA);
-  return db;
+/** Create a new Pool. */
+export function createPool(connectionString?: string): Pool {
+  return new Pool({ connectionString: connectionString ?? defaultUrl() });
 }
 
-function runMigrations(db: Database.Database): void {
-  for (const sql of MIGRATIONS) {
-    try {
-      db.exec(sql);
-    } catch {
-      // column already exists or migration already applied
-    }
+/** Run schema migrations. */
+export async function initSchema(pool: Pool): Promise<void> {
+  await pool.query(SCHEMA);
+}
+
+/**
+ * Singleton for Next.js (survives HMR in dev).
+ * Automatically runs schema on first call.
+ */
+const g = globalThis as unknown as {
+  __claudeLoggerPool?: Pool;
+  __claudeLoggerReady?: boolean;
+};
+
+export async function getPool(): Promise<Pool> {
+  if (!g.__claudeLoggerPool) {
+    g.__claudeLoggerPool = createPool();
   }
+  if (!g.__claudeLoggerReady) {
+    await initSchema(g.__claudeLoggerPool);
+    g.__claudeLoggerReady = true;
+  }
+  return g.__claudeLoggerPool;
 }
 
 /**
@@ -90,21 +85,4 @@ export function extractUsername(event: {
   const mac = p.match(/^\/Users\/([^/]+)/);
   if (mac) return mac[1];
   return "unknown";
-}
-
-/**
- * Singleton for Next.js (survives HMR in dev).
- * Call getDb() in API routes and server components.
- * Always runs migrations to handle schema changes without restart.
- */
-const g = globalThis as unknown as { __claudeLoggerDb?: Database.Database };
-
-export function getDb(): Database.Database {
-  if (!g.__claudeLoggerDb) {
-    g.__claudeLoggerDb = openDb();
-  } else {
-    // Re-run migrations on cached connection to pick up schema changes
-    runMigrations(g.__claudeLoggerDb);
-  }
-  return g.__claudeLoggerDb;
 }

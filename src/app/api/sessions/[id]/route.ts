@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/sessions";
 
 export async function GET(
@@ -7,8 +7,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const db = getDb();
-  const session = getSession(db, id);
+  const pool = await getPool();
+  const session = await getSession(pool, id);
 
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });

@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { listUsers, listSessions, getStats } from "@/lib/sessions";
 import StatsBar from "@/components/StatsBar";
 import ToolUsageBar from "@/components/ToolUsageBar";
@@ -13,10 +13,10 @@ export default async function DashboardPage({
   searchParams: Promise<{ user?: string }>;
 }) {
   const { user } = await searchParams;
-  const db = getDb();
-  const users = listUsers(db);
-  const stats = getStats(db, user);
-  const sessions = listSessions(db, 50, 0, user);
+  const pool = await getPool();
+  const users = await listUsers(pool);
+  const stats = await getStats(pool, user);
+  const sessions = await listSessions(pool, 50, 0, user);
 
   return (
     <>

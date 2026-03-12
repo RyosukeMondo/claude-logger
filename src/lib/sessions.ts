@@ -1,99 +1,113 @@
-import type Database from "better-sqlite3";
+import type { Pool } from "pg";
 import type { Session, Stats } from "./types";
 
 /** List distinct usernames. */
-export function listUsers(db: Database.Database): string[] {
-  const rows = db
-    .prepare(
-      `SELECT DISTINCT username FROM sessions
-       WHERE username != '' ORDER BY username`
-    )
-    .all() as { username: string }[];
+export async function listUsers(pool: Pool): Promise<string[]> {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT username FROM sessions
+     WHERE username != '' ORDER BY username`
+  );
   return rows.map((r) => r.username);
 }
 
 /** List sessions, most recent first. Optionally filter by username. */
-export function listSessions(
-  db: Database.Database,
+export async function listSessions(
+  pool: Pool,
   limit = 50,
   offset = 0,
   username?: string
-): Session[] {
+): Promise<Session[]> {
   if (username) {
-    return db
-      .prepare(
-        `SELECT * FROM sessions WHERE username = ?
-         ORDER BY COALESCE(started_at, '9999') DESC
-         LIMIT ? OFFSET ?`
-      )
-      .all(username, limit, offset) as Session[];
+    const { rows } = await pool.query(
+      `SELECT * FROM sessions WHERE username = $1
+       ORDER BY COALESCE(started_at, '9999-01-01') DESC
+       LIMIT $2 OFFSET $3`,
+      [username, limit, offset]
+    );
+    return rows.map(toSession);
   }
-  return db
-    .prepare(
-      `SELECT * FROM sessions
-       ORDER BY COALESCE(started_at, '9999') DESC
-       LIMIT ? OFFSET ?`
-    )
-    .all(limit, offset) as Session[];
+  const { rows } = await pool.query(
+    `SELECT * FROM sessions
+     ORDER BY COALESCE(started_at, '9999-01-01') DESC
+     LIMIT $1 OFFSET $2`,
+    [limit, offset]
+  );
+  return rows.map(toSession);
 }
 
-/** Get a single session by ID. Returns null if not found. */
-export function getSession(
-  db: Database.Database,
+/** Get a single session by ID. */
+export async function getSession(
+  pool: Pool,
   sessionId: string
-): Session | null {
-  const row = db
-    .prepare("SELECT * FROM sessions WHERE id = ?")
-    .get(sessionId) as Session | undefined;
-  return row ?? null;
+): Promise<Session | null> {
+  const { rows } = await pool.query(
+    "SELECT * FROM sessions WHERE id = $1",
+    [sessionId]
+  );
+  return rows[0] ? toSession(rows[0]) : null;
 }
 
-/** Aggregate stats across all sessions. Optionally filter by username. */
-export function getStats(db: Database.Database, username?: string): Stats {
-  const userFilter = username ? "WHERE s.username = ?" : "";
-  const eventFilter = username
-    ? "WHERE e.session_id IN (SELECT id FROM sessions WHERE username = ?)"
+/** Aggregate stats. Optionally filter by username. */
+export async function getStats(pool: Pool, username?: string): Promise<Stats> {
+  const userSessionFilter = username
+    ? "WHERE username = $1"
     : "";
+  const eventJoin = username
+    ? "WHERE e.session_id IN (SELECT id FROM sessions WHERE username = $1)"
+    : "";
+  const eventToolFilter = username
+    ? "WHERE e.session_id IN (SELECT id FROM sessions WHERE username = $1) AND e.tool_name IS NOT NULL"
+    : "WHERE e.tool_name IS NOT NULL";
   const params = username ? [username] : [];
 
-  const totalSessions = (
-    db
-      .prepare(`SELECT COUNT(*) as c FROM sessions s ${userFilter}`)
-      .get(...params) as { c: number }
-  ).c;
-
-  const totalEvents = (
-    db
-      .prepare(`SELECT COUNT(*) as c FROM events e ${eventFilter}`)
-      .get(...params) as { c: number }
-  ).c;
-
-  const toolRows = db
-    .prepare(
-      `SELECT e.tool_name, COUNT(*) as count FROM events e
-       ${eventFilter ? eventFilter + " AND" : "WHERE"} e.tool_name IS NOT NULL
-       GROUP BY e.tool_name ORDER BY count DESC LIMIT 20`
-    )
-    .all(...params) as { tool_name: string; count: number }[];
-
-  const recentRows = db
-    .prepare(
-      `SELECT e.session_id, e.hook_event_name, e.tool_name, e.summary, e.timestamp
-       FROM events e ${eventFilter}
-       ORDER BY e.timestamp DESC LIMIT 15`
-    )
-    .all(...params) as {
-    session_id: string;
-    hook_event_name: string;
-    tool_name: string | null;
-    summary: string;
-    timestamp: string;
-  }[];
+  const sessRes = await pool.query(
+    `SELECT COUNT(*)::int as c FROM sessions ${userSessionFilter}`,
+    params
+  );
+  const evtRes = await pool.query(
+    `SELECT COUNT(*)::int as c FROM events e ${eventJoin}`,
+    params
+  );
+  const toolRes = await pool.query(
+    `SELECT e.tool_name, COUNT(*)::int as count FROM events e
+     ${eventToolFilter}
+     GROUP BY e.tool_name ORDER BY count DESC LIMIT 20`,
+    params
+  );
+  const recentRes = await pool.query(
+    `SELECT e.session_id, e.hook_event_name, e.tool_name, e.summary, e.timestamp
+     FROM events e ${eventJoin}
+     ORDER BY e.timestamp DESC LIMIT 15`,
+    params
+  );
 
   return {
-    total_sessions: totalSessions,
-    total_events: totalEvents,
-    tool_usage: toolRows.map((r) => ({ name: r.tool_name, count: r.count })),
-    recent_activity: recentRows,
+    total_sessions: sessRes.rows[0].c,
+    total_events: evtRes.rows[0].c,
+    tool_usage: toolRes.rows.map((r) => ({ name: r.tool_name, count: r.count })),
+    recent_activity: recentRes.rows.map((r) => ({
+      ...r,
+      timestamp: typeof r.timestamp === "string" ? r.timestamp : r.timestamp?.toISOString?.() ?? "",
+    })),
   };
+}
+
+function toSession(r: Record<string, unknown>): Session {
+  return {
+    id: r.id as string,
+    username: (r.username as string) ?? "",
+    project_dir: (r.project_dir as string) ?? "",
+    started_at: r.started_at ? toIso(r.started_at) : null,
+    ended_at: r.ended_at ? toIso(r.ended_at) : null,
+    permission_mode: (r.permission_mode as string) ?? null,
+    event_count: (r.event_count as number) ?? 0,
+    prompt_count: (r.prompt_count as number) ?? 0,
+    tool_count: (r.tool_count as number) ?? 0,
+  };
+}
+
+function toIso(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
 }

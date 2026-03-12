@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { recordEvent } from "@/lib/events";
 import type { HookEvent } from "@/lib/types";
 
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const db = getDb();
-  const eventId = recordEvent(db, body);
+  const pool = await getPool();
+  const eventId = await recordEvent(pool, body);
   return NextResponse.json({ status: "ok", event_id: eventId });
 }

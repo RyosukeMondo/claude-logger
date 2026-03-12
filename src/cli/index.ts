@@ -3,15 +3,16 @@
  * CLI for claude-logger - exercises the same lib as the web app.
  *
  * Usage:
- *   npx tsx src/cli/index.ts sessions
+ *   npx tsx src/cli/index.ts users
+ *   npx tsx src/cli/index.ts sessions [--user X]
  *   npx tsx src/cli/index.ts session <id>
  *   npx tsx src/cli/index.ts events <session-id>
- *   npx tsx src/cli/index.ts stats
+ *   npx tsx src/cli/index.ts stats [--user X]
  *   npx tsx src/cli/index.ts share <session-id>
  *   npx tsx src/cli/index.ts serve [--port 8111]
  */
 
-import { openDb } from "../lib/db";
+import { createPool, initSchema } from "../lib/db";
 import { getEvents } from "../lib/events";
 import { listUsers, listSessions, getSession, getStats } from "../lib/sessions";
 import { createShare } from "../lib/shares";
@@ -23,7 +24,7 @@ const BANNER = `
            v0.1.0 :: cli
 `;
 
-function main() {
+async function main() {
   const [cmd, ...args] = process.argv.slice(2);
 
   if (!cmd || cmd === "help" || cmd === "--help") {
@@ -44,11 +45,12 @@ function main() {
     return;
   }
 
-  const db = openDb();
+  const pool = createPool();
+  await initSchema(pool);
 
   switch (cmd) {
     case "users": {
-      const users = listUsers(db);
+      const users = await listUsers(pool);
       if (users.length === 0) {
         console.log("No users detected.");
         break;
@@ -61,7 +63,7 @@ function main() {
     case "sessions": {
       const userIdx = args.indexOf("--user");
       const user = userIdx >= 0 ? args[userIdx + 1] : undefined;
-      const sessions = listSessions(db, 50, 0, user);
+      const sessions = await listSessions(pool, 50, 0, user);
       if (sessions.length === 0) {
         console.log("No sessions recorded.");
         break;
@@ -89,7 +91,7 @@ function main() {
     }
 
     case "session": {
-      const s = getSession(db, args[0]);
+      const s = await getSession(pool, args[0]);
       if (!s) {
         console.error(`Session ${args[0]} not found.`);
         process.exit(1);
@@ -99,7 +101,7 @@ function main() {
     }
 
     case "events": {
-      const events = getEvents(db, args[0]);
+      const events = await getEvents(pool, args[0]);
       if (events.length === 0) {
         console.log("No events found.");
         break;
@@ -116,7 +118,7 @@ function main() {
     case "stats": {
       const statUserIdx = args.indexOf("--user");
       const statUser = statUserIdx >= 0 ? args[statUserIdx + 1] : undefined;
-      const stats = getStats(db, statUser);
+      const stats = await getStats(pool, statUser);
       console.log(`Sessions: ${stats.total_sessions}`);
       console.log(`Events:   ${stats.total_events}`);
       if (stats.tool_usage.length > 0) {
@@ -131,7 +133,7 @@ function main() {
     }
 
     case "share": {
-      const share = createShare(db, args[0]);
+      const share = await createShare(pool, args[0]);
       console.log(`Share created: ${share.id}`);
       console.log(`URL: http://localhost:8111/share/${share.id}`);
       console.log(`Expires: ${share.expires_at}`);
@@ -143,7 +145,7 @@ function main() {
       process.exit(1);
   }
 
-  db.close();
+  await pool.end();
 }
 
 function serve(args: string[]) {
@@ -154,7 +156,6 @@ function serve(args: string[]) {
   console.log(`  Starting Next.js on port ${port}...`);
   console.log(`  Hook URL: http://localhost:${port}/api/hooks\n`);
 
-  // Use execSync to start next dev
   const { execSync } = require("child_process");
   try {
     execSync(`npx next dev -p ${port}`, { stdio: "inherit", cwd: process.cwd() });

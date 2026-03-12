@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/sessions";
 import { getEvents } from "@/lib/events";
 import { getShare } from "@/lib/shares";
@@ -10,8 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const db = getDb();
-  const share = getShare(db, id);
+  const pool = await getPool();
+  const share = await getShare(pool, id);
 
   if (!share) {
     return NextResponse.json(
@@ -20,7 +20,7 @@ export async function GET(
     );
   }
 
-  const session = getSession(db, share.session_id);
+  const session = await getSession(pool, share.session_id);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
@@ -29,7 +29,7 @@ export async function GET(
     screen: "share",
     share,
     session,
-    events: getEvents(db, share.session_id),
+    events: await getEvents(pool, share.session_id),
   };
 
   return NextResponse.json(view);

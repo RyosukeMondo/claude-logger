@@ -1,0 +1,18 @@
+services:
+  app:
+    container_name: claude-logger-app
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger
+      BASE_PATH: /claude-logger
+    networks:
+      - claude-logger-network
+      - museum-network
+
+networks:
+  claude-logger-network:
+    name: claude-logger-network
+  museum-network:
+    external: true
+    name: museum-map_museum-network

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/sessions";
 import { getEvents } from "@/lib/events";
 import PromptList from "@/components/PromptList";
@@ -14,11 +14,11 @@ export default async function SessionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const db = getDb();
-  const session = getSession(db, id);
+  const pool = await getPool();
+  const session = await getSession(pool, id);
   if (!session) notFound();
 
-  const events = getEvents(db, id);
+  const events = await getEvents(pool, id);
 
   return (
     <>

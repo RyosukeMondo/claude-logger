@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { listUsers, listSessions, getStats } from "@/lib/sessions";
 import type { DashboardView } from "@/lib/types";
 
@@ -7,12 +7,12 @@ export async function GET(request: Request): Promise<NextResponse<DashboardView>
   const url = new URL(request.url);
   const user = url.searchParams.get("user") ?? undefined;
 
-  const db = getDb();
+  const pool = await getPool();
   return NextResponse.json({
     screen: "dashboard",
-    users: listUsers(db),
+    users: await listUsers(pool),
     current_user: user ?? null,
-    stats: getStats(db, user),
-    sessions: listSessions(db, 50, 0, user),
+    stats: await getStats(pool, user),
+    sessions: await listSessions(pool, 50, 0, user),
   });
 }
