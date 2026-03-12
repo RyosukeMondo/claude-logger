@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Session } from "@/lib/types";
+import HookUrl from "./HookUrl";
 
 export default function SessionTable({ sessions }: { sessions: Session[] }) {
   if (sessions.length === 0) {
@@ -9,10 +10,10 @@ export default function SessionTable({ sessions }: { sessions: Session[] }) {
         <div className="panel-body empty">
           <p>NO SESSIONS RECORDED</p>
           <pre>
-{` Configure Claude Code hooks to POST to:
- http://localhost:8111/api/hooks
-
- Waiting for events`}
+{` Configure Claude Code hooks to POST to:`}
+            {"\n "}
+            <HookUrl />
+            {"\n\n Waiting for events"}
             <span className="cursor" />
           </pre>
         </div>
