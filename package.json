@@ -1,0 +1,29 @@
+{
+  "name": "claude-logger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "REST API receiver and visualizer for Claude Code hook events",
+  "scripts": {
+    "dev": "next dev -p 8111",
+    "build": "next build",
+    "start": "next start -p 8111",
+    "cli": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}
