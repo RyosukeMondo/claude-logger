@@ -6,6 +6,7 @@ services:
     environment:
       DATABASE_URL: postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger
       BASE_PATH: /claude-logger
+      TZ: Asia/Tokyo
     networks:
       - claude-logger-network
       - museum-network
