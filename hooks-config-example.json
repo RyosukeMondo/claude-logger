@@ -1,19 +1,18 @@
 {
-  "_comment": "Copy the 'hooks' block into .claude/settings.local.json in any project you want to log",
-  "_endpoint": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks",
+  "_comment": "Copy the 'hooks' block into .claude/settings.local.json — replace <ENDPOINT_URL> with your server URL",
   "_scopes": {
     "local":   "<repo>/.claude/settings.local.json  (one repo, gitignored — recommended)",
     "project": "<repo>/.claude/settings.json         (one repo, committed to git)",
     "global":  "~/.claude/settings.json              (all projects)"
   },
   "hooks": {
-    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "Notification":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "Stop":               [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }]
+    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "Notification":       [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "Stop":               [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }]
   }
 }

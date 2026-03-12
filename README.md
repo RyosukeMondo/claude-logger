@@ -8,31 +8,31 @@
 
 Record and visualize all [Claude Code](https://docs.anthropic.com/en/docs/claude-code) activity — prompts, tool calls, sessions — via hooks. Terminal-themed dashboard with session sharing.
 
-**Dashboard**: https://mondo-ai-studio.xvps.jp/claude-logger
+## Connect a Project
 
-## Connect Any Project in 30 Seconds
-
-Create `.claude/settings.local.json` in the project you want to log:
+If someone shared an endpoint URL with you, create `.claude/settings.local.json` in the project you want to log:
 
 ```json
 {
   "hooks": {
-    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "Notification":       [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "Stop":               [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }]
+    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "Notification":       [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "Stop":               [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }]
   }
 }
 ```
 
+Replace `<ENDPOINT_URL>` with the URL you were given (e.g. `https://example.com/claude-logger/api/hooks`).
+
 Then restart Claude Code. All activity from that project will appear on the dashboard.
 
-> **Tip**: You can paste this into Claude Code instead:
-> *"Please setup hooks for this project to POST to https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks — create `.claude/settings.local.json` with all hook events."*
+> **Tip**: Or just tell Claude Code:
+> *"Please setup hooks for this project to POST to `<ENDPOINT_URL>` — create `.claude/settings.local.json` with all hook events."*
 
 ## Hook Scope Options
 
@@ -49,8 +49,8 @@ You don't need all events. Pick what you care about:
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }],
-    "Stop":             [{ "hooks": [{ "type": "http", "url": "https://mondo-ai-studio.xvps.jp/claude-logger/api/hooks" }] }]
+    "UserPromptSubmit": [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }],
+    "Stop":             [{ "hooks": [{ "type": "http", "url": "<ENDPOINT_URL>" }] }]
   }
 }
 ```
@@ -69,8 +69,6 @@ You don't need all events. Pick what you care about:
 | `Stop` | Claude finishes a response |
 
 ## Self-Hosting
-
-To run your own instance instead of using the hosted version:
 
 ### Requirements
 
