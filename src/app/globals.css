@@ -107,6 +107,15 @@ a:hover { text-decoration: underline; text-shadow: 0 0 6px rgba(0,212,255,0.4); 
 .btn:hover { background: var(--green); color: var(--bg); box-shadow: 0 0 12px var(--green-glow); text-decoration: none; }
 .btn-amber { border-color: var(--amber); color: var(--amber); }
 .btn-amber:hover { background: var(--amber); color: var(--bg); }
+.btn-del {
+  background: transparent; border: 1px solid var(--gray); color: var(--gray-lt);
+  font-family: var(--mono); font-size: 14px; cursor: pointer;
+  width: 22px; height: 22px; line-height: 1; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; opacity: 0.4; transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-del:hover { opacity: 1; color: var(--red); border-color: var(--red); }
+.btn-del:disabled { opacity: 0.2; cursor: default; }
 
 /* share badge */
 .share-badge { display: inline-block; padding: 4px 12px; background: var(--bg-hl); border: 1px solid var(--cyan); color: var(--cyan); font-size: 11px; letter-spacing: 1px; }

@@ -79,6 +79,50 @@ export async function recordEvent(pool: Pool, event: HookEvent): Promise<number>
   }
 }
 
+/** Delete an event by ID. Decrements session counters. */
+export async function deleteEvent(pool: Pool, eventId: number): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows } = await client.query(
+      "DELETE FROM events WHERE id = $1 RETURNING session_id, hook_event_name, tool_name",
+      [eventId]
+    );
+    if (rows.length === 0) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    const { session_id, hook_event_name, tool_name } = rows[0];
+
+    await client.query(
+      "UPDATE sessions SET event_count = GREATEST(event_count - 1, 0) WHERE id = $1",
+      [session_id]
+    );
+    if (hook_event_name === "UserPromptSubmit") {
+      await client.query(
+        "UPDATE sessions SET prompt_count = GREATEST(prompt_count - 1, 0) WHERE id = $1",
+        [session_id]
+      );
+    }
+    if (tool_name) {
+      await client.query(
+        "UPDATE sessions SET tool_count = GREATEST(tool_count - 1, 0) WHERE id = $1",
+        [session_id]
+      );
+    }
+
+    await client.query("COMMIT");
+    return true;
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 /** Get events for a session, ordered by timestamp. */
 export async function getEvents(
   pool: Pool,
