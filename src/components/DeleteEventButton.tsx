@@ -10,7 +10,8 @@ export default function DeleteEventButton({ eventId }: { eventId: number }) {
   async function handleDelete() {
     if (!confirm("Delete this event?")) return;
     setPending(true);
-    await fetch(`/api/events/${eventId}`, { method: "DELETE" });
+    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    await fetch(`${base}/api/events/${eventId}`, { method: "DELETE" });
     router.refresh();
   }
 

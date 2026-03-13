@@ -8,7 +8,8 @@ export default function ShareButton({ sessionId }: { sessionId: string }) {
 
   async function handleShare() {
     setLoading(true);
-    const resp = await fetch(`/api/sessions/${sessionId}/share`, {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const resp = await fetch(`${base}/api/sessions/${sessionId}/share`, {
       method: "POST",
     });
     const data = await resp.json();
