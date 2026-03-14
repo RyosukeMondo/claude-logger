@@ -135,15 +135,14 @@ export async function getPromptTimestamps(
   let params: unknown[];
 
   if (date) {
-    // Convert date string to explicit JST boundaries as ISO timestamps
-    // so PostgreSQL (UTC) gets the correct range
-    const dayStartJST = `${date}T00:00:00+09:00`;
-    const dayEndJST = `${date}T23:59:59.999+09:00`;
+    // Convert JST date to UTC Date objects for node-postgres
+    const dayStart = new Date(`${date}T00:00:00+09:00`);
+    const dayEnd = new Date(`${date}T23:59:59.999+09:00`);
     query = `SELECT session_id, timestamp FROM events
      WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
-       AND timestamp >= $2::timestamptz AND timestamp <= $3::timestamptz
+       AND timestamp >= $2 AND timestamp <= $3
      ORDER BY timestamp ASC`;
-    params = [sessionIds, dayStartJST, dayEndJST];
+    params = [sessionIds, dayStart, dayEnd];
   } else {
     query = `SELECT session_id, timestamp FROM events
      WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
