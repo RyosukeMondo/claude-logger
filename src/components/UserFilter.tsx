@@ -10,8 +10,14 @@ export default function UserFilter({ users }: { users: string[] }) {
   if (users.length <= 1) return null;
 
   function select(user: string | null) {
-    const url = user ? `/?user=${encodeURIComponent(user)}` : "/";
-    router.push(url);
+    const sp = new URLSearchParams(params.toString());
+    if (user) {
+      sp.set("user", user);
+    } else {
+      sp.delete("user");
+    }
+    const qs = sp.toString();
+    router.push(qs ? `/?${qs}` : "/");
   }
 
   return (

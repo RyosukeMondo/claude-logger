@@ -123,19 +123,31 @@ export async function deleteEvent(pool: Pool, eventId: number): Promise<boolean>
   }
 }
 
-/** Get UserPromptSubmit timestamps grouped by session. */
+/** Get UserPromptSubmit timestamps grouped by session. Optionally filter by date. */
 export async function getPromptTimestamps(
   pool: Pool,
-  sessionIds: string[]
+  sessionIds: string[],
+  date?: string // YYYY-MM-DD, filters to that day
 ): Promise<Map<string, number[]>> {
   if (sessionIds.length === 0) return new Map();
 
-  const { rows } = await pool.query(
-    `SELECT session_id, timestamp FROM events
+  let query: string;
+  let params: unknown[];
+
+  if (date) {
+    query = `SELECT session_id, timestamp FROM events
      WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
-     ORDER BY timestamp ASC`,
-    [sessionIds]
-  );
+       AND timestamp >= $2::date AND timestamp < ($2::date + interval '1 day')
+     ORDER BY timestamp ASC`;
+    params = [sessionIds, date];
+  } else {
+    query = `SELECT session_id, timestamp FROM events
+     WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
+     ORDER BY timestamp ASC`;
+    params = [sessionIds];
+  }
+
+  const { rows } = await pool.query(query, params);
 
   const map = new Map<string, number[]>();
   for (const r of rows) {
