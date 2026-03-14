@@ -74,6 +74,7 @@ export async function getPool(): Promise<Pool> {
  * Extract system username from transcript_path or cwd.
  *   /home/rmondo/.claude/...  → rmondo
  *   /Users/alice/projects/... → alice
+ *   C:\Users\mmmhe\...       → mmmhe
  */
 export function extractUsername(event: {
   transcript_path?: string;
@@ -84,5 +85,7 @@ export function extractUsername(event: {
   if (linux) return linux[1];
   const mac = p.match(/^\/Users\/([^/]+)/);
   if (mac) return mac[1];
+  const win = p.match(/^[A-Za-z]:\\Users\\([^\\]+)/);
+  if (win) return win[1];
   return "unknown";
 }

@@ -14,7 +14,7 @@ export default function PromptList({ events }: { events: EventRecord[] }) {
       </div>
       <div className="panel-body">
         {prompts.map((p, i) => (
-          <div key={p.id} style={{ marginBottom: i < prompts.length - 1 ? 12 : 0 }}>
+          <div key={p.id} id={`prompt-${i + 1}`} style={{ marginBottom: i < prompts.length - 1 ? 12 : 0 }}>
             <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--gray-lt)", marginBottom: 4, alignItems: "center" }}>
               <span>#{i + 1}</span>
               <span>{p.timestamp?.slice(11, 19)}</span>

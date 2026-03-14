@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Session } from "@/lib/types";
 
-const PROMPT_DURATION_MS = 10 * 60 * 1000;
+const PROMPT_DURATION_MS = 1 * 60 * 1000; // 1 minute per prompt tick
 const GAP_THRESHOLD_MS = 30 * 60 * 1000;
 const ROW_HEIGHT = 28;
 const ROW_GAP = 4;
-const MIN_BAR_WIDTH = 4;
+const MIN_BAR_WIDTH = 6;
 
 const USER_PALETTE = [
   { bg: "#00aa2a", border: "#00ff41", glow: "rgba(0,255,65,0.3)", text: "#0a0e14" },
@@ -18,10 +18,10 @@ const USER_PALETTE = [
   { bg: "#3366aa", border: "#5599ff", glow: "rgba(85,153,255,0.3)", text: "#fff" },
 ];
 
-interface ActivityRange {
+interface PromptTick {
   sessionId: string;
   username: string;
-  promptCount: number;
+  promptIndex: number; // 1-based index within session
   startMs: number;
   endMs: number;
 }
@@ -33,30 +33,28 @@ interface Props {
 }
 
 export default function SessionTimeline({ sessions, promptMap, date }: Props) {
-  // Build user -> color mapping
   const usernames = [...new Set(sessions.map((s) => s.username).filter(Boolean))];
   const userColor = new Map<string, (typeof USER_PALETTE)[0]>();
   usernames.forEach((u, i) => userColor.set(u, USER_PALETTE[i % USER_PALETTE.length]));
 
-  // Build activity ranges from prompt timestamps
-  const allRanges: ActivityRange[] = [];
+  const allTicks: PromptTick[] = [];
   for (const s of sessions) {
     const timestamps = promptMap[s.id];
     if (!timestamps || timestamps.length === 0) continue;
 
-    const merged = mergePromptWindows(timestamps);
-    for (const range of merged) {
-      allRanges.push({
+    const sorted = [...timestamps].sort((a, b) => a - b);
+    sorted.forEach((ts, i) => {
+      allTicks.push({
         sessionId: s.id,
         username: s.username || s.id.slice(0, 8),
-        promptCount: timestamps.filter((t) => t >= range.start && t < range.end).length,
-        startMs: range.start,
-        endMs: range.end,
+        promptIndex: i + 1,
+        startMs: ts,
+        endMs: ts + PROMPT_DURATION_MS,
       });
-    }
+    });
   }
 
-  if (allRanges.length === 0) {
+  if (allTicks.length === 0) {
     return (
       <div className="panel">
         <div className="panel-header">
@@ -70,23 +68,22 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
     );
   }
 
-  allRanges.sort((a, b) => a.startMs - b.startMs);
+  allTicks.sort((a, b) => a.startMs - b.startMs);
 
-  const blocks = buildBlocks(allRanges);
+  const blocks = buildBlocks(allTicks);
   const totalDuration = blocks.reduce((s, b) => s + (b.end - b.start), 0);
   if (totalDuration === 0) return null;
 
-  const lanes = assignLanes(allRanges);
+  const lanes = assignLanes(allTicks);
   const laneCount = Math.max(...lanes) + 1;
 
   return (
     <div className="panel">
       <div className="panel-header">
         <span>ACTIVITY TIMELINE</span>
-        <span>{allRanges.length} blocks / {date}</span>
+        <span>{allTicks.length} prompts / {date}</span>
       </div>
       <div className="panel-body">
-        {/* Legend */}
         {usernames.length > 1 && (
           <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
             {usernames.map((u) => {
@@ -105,7 +102,6 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
           </div>
         )}
 
-        {/* Time axis */}
         <div className="st-axis">
           {blocks.map((block, i) => (
             <div key={i} className="st-axis-block" style={{ flex: block.end - block.start }}>
@@ -115,7 +111,6 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
           ))}
         </div>
 
-        {/* Chart */}
         <div className="st-chart" style={{ height: laneCount * (ROW_HEIGHT + ROW_GAP) + ROW_GAP }}>
           <div className="st-blocks">
             {blocks.map((block, i) => (
@@ -125,17 +120,17 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
             ))}
           </div>
 
-          {allRanges.map((r, ri) => {
-            const segments = getBarSegments(r.startMs, r.endMs, blocks, totalDuration);
-            const c = userColor.get(r.username) ?? USER_PALETTE[0];
+          {allTicks.map((t, ti) => {
+            const segments = getBarSegments(t.startMs, t.endMs, blocks, totalDuration);
+            const c = userColor.get(t.username) ?? USER_PALETTE[0];
 
             return segments.map((seg, si) => (
               <Link
-                key={`${r.sessionId}-${ri}-${si}`}
-                href={`/sessions/${r.sessionId}`}
+                key={`${t.sessionId}-${ti}-${si}`}
+                href={`/sessions/${t.sessionId}#prompt-${t.promptIndex}`}
                 className="st-bar"
                 style={{
-                  top: ROW_GAP + lanes[ri] * (ROW_HEIGHT + ROW_GAP),
+                  top: ROW_GAP + lanes[ti] * (ROW_HEIGHT + ROW_GAP),
                   left: `${seg.leftPct}%`,
                   width: `max(${MIN_BAR_WIDTH}px, ${seg.widthPct}%)`,
                   height: ROW_HEIGHT,
@@ -143,9 +138,9 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
                   borderColor: c.border,
                   boxShadow: `0 0 4px ${c.glow}`,
                 }}
-                title={`${r.username} — ${fmtShort(r.startMs)} → ${fmtShort(r.endMs)} (${r.promptCount} prompts)`}
+                title={`${t.username} #${t.promptIndex} — ${fmtShort(t.startMs)}`}
               >
-                <span className="st-bar-label" style={{ color: c.text }}>{r.username}</span>
+                <span className="st-bar-label" style={{ color: c.text }}>#{t.promptIndex}</span>
               </Link>
             ));
           })}
@@ -155,26 +150,9 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
   );
 }
 
-function mergePromptWindows(timestamps: number[]): { start: number; end: number }[] {
-  const sorted = [...timestamps].sort((a, b) => a - b);
-  const ranges: { start: number; end: number }[] = [
-    { start: sorted[0], end: sorted[0] + PROMPT_DURATION_MS },
-  ];
-  for (const ts of sorted.slice(1)) {
-    const last = ranges[ranges.length - 1];
-    const windowEnd = ts + PROMPT_DURATION_MS;
-    if (ts <= last.end) {
-      last.end = Math.max(last.end, windowEnd);
-    } else {
-      ranges.push({ start: ts, end: windowEnd });
-    }
-  }
-  return ranges;
-}
-
-function buildBlocks(ranges: { startMs: number; endMs: number }[]): { start: number; end: number }[] {
-  if (ranges.length === 0) return [];
-  const sorted = [...ranges].sort((a, b) => a.startMs - b.startMs);
+function buildBlocks(ticks: { startMs: number; endMs: number }[]): { start: number; end: number }[] {
+  if (ticks.length === 0) return [];
+  const sorted = [...ticks].sort((a, b) => a.startMs - b.startMs);
   const blocks: { start: number; end: number }[] = [
     { start: sorted[0].startMs, end: sorted[0].endMs },
   ];
@@ -189,9 +167,9 @@ function buildBlocks(ranges: { startMs: number; endMs: number }[]): { start: num
   return blocks;
 }
 
-function assignLanes(ranges: { startMs: number; endMs: number }[]): number[] {
+function assignLanes(ticks: { startMs: number; endMs: number }[]): number[] {
   const laneEnds: number[] = [];
-  return ranges.map((r) => {
+  return ticks.map((r) => {
     for (let i = 0; i < laneEnds.length; i++) {
       if (r.startMs >= laneEnds[i]) {
         laneEnds[i] = r.endMs;
