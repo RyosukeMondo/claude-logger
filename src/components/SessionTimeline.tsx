@@ -1,102 +1,118 @@
 import Link from "next/link";
 import type { Session } from "@/lib/types";
 
-const GAP_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
-const GAP_WIDTH_PX = 24;
+const PROMPT_DURATION_MS = 10 * 60 * 1000; // each prompt = 10 min activity
+const GAP_THRESHOLD_MS = 30 * 60 * 1000; // compress gaps > 30 min
 const ROW_HEIGHT = 28;
 const ROW_GAP = 4;
-const LABEL_WIDTH = 100;
 const MIN_BAR_WIDTH = 4;
 
-interface Block {
-  start: number;
-  end: number;
-  offsetPx: number;
-  widthPx: number;
+interface ActivityRange {
+  sessionId: string;
+  username: string;
+  promptCount: number;
+  startMs: number;
+  endMs: number;
 }
 
-export default function SessionTimeline({ sessions }: { sessions: Session[] }) {
-  const timed = sessions
-    .filter((s) => s.started_at)
-    .map((s) => ({
-      ...s,
-      startMs: new Date(s.started_at!).getTime(),
-      endMs: s.ended_at
-        ? new Date(s.ended_at).getTime()
-        : new Date(s.started_at!).getTime() + 10 * 60 * 1000, // default 10 min if no end
-    }))
-    .sort((a, b) => a.startMs - b.startMs);
+interface Props {
+  sessions: Session[];
+  promptMap: Record<string, number[]>; // session_id -> prompt epoch ms[]
+}
 
-  if (timed.length === 0) return null;
+export default function SessionTimeline({ sessions, promptMap }: Props) {
+  // Build activity ranges from prompt timestamps
+  const allRanges: ActivityRange[] = [];
+  for (const s of sessions) {
+    const timestamps = promptMap[s.id];
+    if (!timestamps || timestamps.length === 0) continue;
 
-  // Build activity blocks by merging overlapping/close ranges
-  const blocks = buildBlocks(timed);
+    // Merge overlapping prompt windows within a session
+    const merged = mergePromptWindows(timestamps);
+    for (const range of merged) {
+      allRanges.push({
+        sessionId: s.id,
+        username: s.username || s.id.slice(0, 8),
+        promptCount: timestamps.filter(
+          (t) => t >= range.start && t < range.end
+        ).length,
+        startMs: range.start,
+        endMs: range.end,
+      });
+    }
+  }
 
-  // Compute pixel layout for blocks
+  if (allRanges.length === 0) return null;
+
+  allRanges.sort((a, b) => a.startMs - b.startMs);
+
+  // Build compressed time blocks
+  const blocks = buildBlocks(allRanges);
   const totalDuration = blocks.reduce((s, b) => s + (b.end - b.start), 0);
   if (totalDuration === 0) return null;
 
-  const gapCount = Math.max(0, blocks.length - 1);
-  const totalGapPx = gapCount * GAP_WIDTH_PX;
-  const availableWidth = 100; // percentage
-  // We'll use a mix: gaps are fixed px, blocks are proportional
-
-  // Assign rows (swim lanes) for concurrency
-  const lanes = assignLanes(timed);
+  // Assign swim lanes
+  const lanes = assignLanes(allRanges);
   const laneCount = Math.max(...lanes) + 1;
 
   return (
     <div className="panel">
       <div className="panel-header">
-        <span>SESSION TIMELINE</span>
-        <span>{timed.length} sessions</span>
+        <span>ACTIVITY TIMELINE</span>
+        <span>{allRanges.length} activity blocks</span>
       </div>
       <div className="panel-body">
-        {/* Time axis labels */}
         <div className="st-axis">
           {blocks.map((block, i) => (
-            <div key={i} className="st-axis-block" style={{ flex: block.end - block.start }}>
+            <div
+              key={i}
+              className="st-axis-block"
+              style={{ flex: block.end - block.start }}
+            >
               <span>{fmtTime(block.start)}</span>
               <span>{fmtTime(block.end)}</span>
             </div>
           ))}
         </div>
 
-        {/* Chart area */}
         <div
           className="st-chart"
           style={{ height: laneCount * (ROW_HEIGHT + ROW_GAP) + ROW_GAP }}
         >
-          {/* Block backgrounds and gap markers */}
           <div className="st-blocks">
             {blocks.map((block, i) => (
-              <div key={i} className="st-block-bg" style={{ flex: block.end - block.start }}>
+              <div
+                key={i}
+                className="st-block-bg"
+                style={{ flex: block.end - block.start }}
+              >
                 {i > 0 && <div className="st-gap">⋯</div>}
               </div>
             ))}
           </div>
 
-          {/* Session bars */}
-          {timed.map((s, si) => {
-            const segments = getBarSegments(s.startMs, s.endMs, blocks, totalDuration);
-            if (segments.length === 0) return null;
+          {allRanges.map((r, ri) => {
+            const segments = getBarSegments(
+              r.startMs,
+              r.endMs,
+              blocks,
+              totalDuration
+            );
 
-            return segments.map((seg, segi) => (
+            return segments.map((seg, si) => (
               <Link
-                key={`${s.id}-${segi}`}
-                href={`/sessions/${s.id}`}
+                key={`${r.sessionId}-${ri}-${si}`}
+                href={`/sessions/${r.sessionId}`}
                 className="st-bar"
                 style={{
-                  top: ROW_GAP + lanes[si] * (ROW_HEIGHT + ROW_GAP),
+                  top: ROW_GAP + lanes[ri] * (ROW_HEIGHT + ROW_GAP),
                   left: `${seg.leftPct}%`,
                   width: `max(${MIN_BAR_WIDTH}px, ${seg.widthPct}%)`,
                   height: ROW_HEIGHT,
                 }}
-                title={`${s.username || "?"} — ${s.started_at?.slice(11, 16)} → ${s.ended_at?.slice(11, 16) ?? "ongoing"} (${s.event_count} events)`}
+                title={`${r.username} — ${fmtShort(r.startMs)} → ${fmtShort(r.endMs)} (${r.promptCount} prompts)`}
               >
-                <span className="st-bar-label">
-                  {s.username || s.id.slice(0, 8)}
-                </span>
+                <span className="st-bar-label">{r.username}</span>
               </Link>
             ));
           })}
@@ -106,23 +122,46 @@ export default function SessionTimeline({ sessions }: { sessions: Session[] }) {
   );
 }
 
-/** Merge overlapping / close session ranges into blocks. */
-function buildBlocks(
-  sessions: { startMs: number; endMs: number }[]
+/** Convert prompt timestamps into merged activity windows (each prompt = 10 min). */
+function mergePromptWindows(
+  timestamps: number[]
 ): { start: number; end: number }[] {
-  if (sessions.length === 0) return [];
+  const sorted = [...timestamps].sort((a, b) => a - b);
+  const ranges: { start: number; end: number }[] = [
+    { start: sorted[0], end: sorted[0] + PROMPT_DURATION_MS },
+  ];
 
-  const sorted = [...sessions].sort((a, b) => a.startMs - b.startMs);
+  for (const ts of sorted.slice(1)) {
+    const last = ranges[ranges.length - 1];
+    const windowEnd = ts + PROMPT_DURATION_MS;
+    if (ts <= last.end) {
+      // Overlaps — extend
+      last.end = Math.max(last.end, windowEnd);
+    } else {
+      ranges.push({ start: ts, end: windowEnd });
+    }
+  }
+
+  return ranges;
+}
+
+/** Merge close ranges into compressed time blocks. */
+function buildBlocks(
+  ranges: { startMs: number; endMs: number }[]
+): { start: number; end: number }[] {
+  if (ranges.length === 0) return [];
+
+  const sorted = [...ranges].sort((a, b) => a.startMs - b.startMs);
   const blocks: { start: number; end: number }[] = [
     { start: sorted[0].startMs, end: sorted[0].endMs },
   ];
 
-  for (const s of sorted.slice(1)) {
+  for (const r of sorted.slice(1)) {
     const last = blocks[blocks.length - 1];
-    if (s.startMs - last.end <= GAP_THRESHOLD_MS) {
-      last.end = Math.max(last.end, s.endMs);
+    if (r.startMs - last.end <= GAP_THRESHOLD_MS) {
+      last.end = Math.max(last.end, r.endMs);
     } else {
-      blocks.push({ start: s.startMs, end: s.endMs });
+      blocks.push({ start: r.startMs, end: r.endMs });
     }
   }
 
@@ -130,21 +169,23 @@ function buildBlocks(
 }
 
 /** Assign swim-lane indices to avoid overlap. */
-function assignLanes(sessions: { startMs: number; endMs: number }[]): number[] {
+function assignLanes(
+  ranges: { startMs: number; endMs: number }[]
+): number[] {
   const laneEnds: number[] = [];
-  return sessions.map((s) => {
+  return ranges.map((r) => {
     for (let i = 0; i < laneEnds.length; i++) {
-      if (s.startMs >= laneEnds[i]) {
-        laneEnds[i] = s.endMs;
+      if (r.startMs >= laneEnds[i]) {
+        laneEnds[i] = r.endMs;
         return i;
       }
     }
-    laneEnds.push(s.endMs);
+    laneEnds.push(r.endMs);
     return laneEnds.length - 1;
   });
 }
 
-/** Map a session's time range to percentage positions across blocks. */
+/** Map a time range to percentage positions across blocks. */
 function getBarSegments(
   startMs: number,
   endMs: number,
@@ -180,4 +221,9 @@ function fmtTime(ms: number): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${mo}/${dd} ${hh}:${mm}`;
+}
+
+function fmtShort(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }

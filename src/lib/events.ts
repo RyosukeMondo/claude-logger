@@ -123,6 +123,32 @@ export async function deleteEvent(pool: Pool, eventId: number): Promise<boolean>
   }
 }
 
+/** Get UserPromptSubmit timestamps grouped by session. */
+export async function getPromptTimestamps(
+  pool: Pool,
+  sessionIds: string[]
+): Promise<Map<string, number[]>> {
+  if (sessionIds.length === 0) return new Map();
+
+  const { rows } = await pool.query(
+    `SELECT session_id, timestamp FROM events
+     WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
+     ORDER BY timestamp ASC`,
+    [sessionIds]
+  );
+
+  const map = new Map<string, number[]>();
+  for (const r of rows) {
+    const ts = r.timestamp instanceof Date
+      ? r.timestamp.getTime()
+      : new Date(r.timestamp).getTime();
+    const arr = map.get(r.session_id) ?? [];
+    arr.push(ts);
+    map.set(r.session_id, arr);
+  }
+  return map;
+}
+
 /** Get events for a session, ordered by timestamp. */
 export async function getEvents(
   pool: Pool,
