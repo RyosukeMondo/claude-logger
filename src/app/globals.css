@@ -138,6 +138,33 @@ nav a:hover, nav a.active { color: var(--green); text-shadow: 0 0 6px var(--gree
 .logo pre { margin: 0; font: inherit; }
 .logo .sub { color: var(--green-dim); font-size: 12px; letter-spacing: 4px; margin-top: 4px; }
 
+/* session timeline chart */
+.st-axis { display: flex; font-size: 10px; color: var(--gray-lt); margin-bottom: 4px; }
+.st-axis-block { display: flex; justify-content: space-between; padding: 0 4px; }
+.st-chart { position: relative; overflow: hidden; border: 1px solid var(--bg-hl); background: var(--bg); }
+.st-blocks { display: flex; position: absolute; inset: 0; pointer-events: none; }
+.st-block-bg { position: relative; border-right: 1px dashed var(--gray); }
+.st-block-bg:last-child { border-right: none; }
+.st-gap {
+  position: absolute; left: -12px; top: 0; bottom: 0; width: 24px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gray); font-size: 14px; z-index: 1;
+}
+.st-bar {
+  position: absolute; border-radius: 2px;
+  background: var(--green-dim); border: 1px solid var(--green);
+  display: flex; align-items: center; overflow: hidden;
+  text-decoration: none; transition: background 0.15s;
+  box-shadow: 0 0 4px var(--green-glow);
+}
+.st-bar:hover { background: var(--green); box-shadow: 0 0 10px var(--green-glow); text-decoration: none; }
+.st-bar-label {
+  font-size: 10px; color: var(--bg); padding: 0 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: bold; letter-spacing: 0.5px;
+}
+.st-bar:hover .st-bar-label { color: var(--bg); }
+
 @media (max-width: 700px) {
   .timeline { padding-left: 20px; }
   .timeline::before { left: 8px; }

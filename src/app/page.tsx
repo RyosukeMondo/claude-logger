@@ -3,6 +3,7 @@ import { listUsers, listSessions, getStats } from "@/lib/sessions";
 import StatsBar from "@/components/StatsBar";
 import ToolUsageBar from "@/components/ToolUsageBar";
 import SessionTable from "@/components/SessionTable";
+import SessionTimeline from "@/components/SessionTimeline";
 import UserFilter from "@/components/UserFilter";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function DashboardPage({
       <UserFilter users={users} />
       <StatsBar stats={stats} />
       <ToolUsageBar tools={stats.tool_usage} />
+      <SessionTimeline sessions={sessions} />
       <SessionTable sessions={sessions} />
     </>
   );
