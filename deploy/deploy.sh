@@ -121,7 +121,8 @@ fi
 
 # --- build here, push to GHCR ---
 GHCR_IMAGE="${GHCR_REPO}/${NAME}"
-BUILD_CTX="$(mktemp -d "${TMPDIR:-/tmp}/${NAME}-build-XXXXXX")"
+mkdir -p /tmp/claude-1000/ctx
+BUILD_CTX="$(mktemp -d "/tmp/claude-1000/ctx/${NAME}.XXXXXX")" # not plain /tmp: other sessions wipe it mid-build
 trap 'rm -rf "$BUILD_CTX"' EXIT
 echo "~ exporting ${SHA} for the image build"
 export_source "$BUILD_CTX" "$ALLOW_DIRTY" "${BUILD_PATHS[@]}" "${SYNC_PATHS[@]}"
