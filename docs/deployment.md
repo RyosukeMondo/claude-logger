@@ -14,10 +14,13 @@
 ## Deploy
 
 ```bash
-# From local machine — commit, push, deploy:
+# From local machine — commit, push, deploy. The image is built HERE, pushed to private GHCR
+# (ghcr.io/ryosukemondo/claude-logger:<sha>), and the VPS pulls it. The VPS never builds.
 git push origin main
-ssh xserver_vps12_rmondo "cd ~/repos/claude-logger && git pull origin main && docker compose build --no-cache && docker compose up -d"
+bash deploy/deploy.sh              # also: --push-only | --status | --rollback
 ```
+
+Baseline adopted from the pre-GHCR image: `ghcr.io/ryosukemondo/claude-logger:running-20261017`.
 
 ## Verify
 
@@ -35,7 +38,7 @@ curl -s https://mondo-ai-studio.xvps.jp/claude-logger/api/stats | python3 -m jso
 services:
   app:
     container_name: claude-logger-app
-    build: .
+    image: claude-logger-app:latest   # no build: on the VPS
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger
@@ -84,8 +87,8 @@ Schema is auto-migrated on app startup (`src/lib/db.ts` → `initSchema()`).
 ## Rollback
 
 ```bash
-ssh xserver_vps12_rmondo "cd ~/repos/claude-logger && git log --oneline -10"
-ssh xserver_vps12_rmondo "cd ~/repos/claude-logger && git checkout <commit> && docker compose build --no-cache && docker compose up -d"
+bash deploy/deploy.sh --rollback   # swap back to the previous image (run again to go forward)
+bash deploy/deploy.sh --status
 ```
 
 ## Local Development

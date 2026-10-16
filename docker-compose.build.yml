@@ -1,0 +1,6 @@
+# Local-development override: builds the image from source instead of using the deployed one.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+# Never copied to the production VPS (deploy/deploy.sh sends docker-compose.yml only).
+services:
+  app:
+    build: .

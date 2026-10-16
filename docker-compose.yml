@@ -1,7 +1,9 @@
 services:
   app:
     container_name: claude-logger-app
-    build: .
+    # Production never builds: deploy/deploy.sh builds on the workstation, pushes to GHCR and the VPS retags the
+    # pulled image to this name. Local build: docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+    image: claude-logger-app:latest
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger

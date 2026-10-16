@@ -13,3 +13,7 @@ next-env.d.ts
 !.env.example
 
 .vercel
+
+# Written on the VPS by deploy/deploy.sh
+.deployed-sha
+.rollback-sha

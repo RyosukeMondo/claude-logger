@@ -9,7 +9,7 @@ When the user asks to deploy, push to production, or update the VPS.
 
 2. **Deploy via SSH**:
 ```bash
-ssh xserver_vps12_rmondo "cd ~/repos/claude-logger && git pull origin main && docker compose build --no-cache && docker compose up -d"
+bash deploy/deploy.sh   # builds locally, pushes to GHCR, VPS pulls; never build on the VPS
 ```
 
 3. **Verify deployment**:
@@ -45,7 +45,5 @@ handle /claude-logger* {
 
 ## Rollback
 ```bash
-ssh xserver_vps12_rmondo "cd ~/repos/claude-logger && git log --oneline -5"
-# Then reset to desired commit:
-ssh xserver_vps12_rmondo "cd ~/repos/claude-logger && git checkout <commit> && docker compose build --no-cache && docker compose up -d"
+bash deploy/deploy.sh --rollback
 ```
