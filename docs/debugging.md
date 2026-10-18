@@ -115,6 +115,6 @@ ssh xserver_vps12_rmondo "docker logs --tail 50 claude-logger-app"
 # Test production API
 curl -s https://mondo-ai-studio.xvps.jp/claude-logger/api/stats | python3 -m json.tool
 
-# Database access (via museum-postgres container)
-ssh xserver_vps12_rmondo "docker exec museum-postgres psql -U museum -d claude_logger -c 'SELECT count(*) FROM events;'"
+# Database access (own claude-logger-db container)
+ssh xserver_vps12_rmondo "docker exec claude-logger-db psql -U claude_logger -d claude_logger -c 'SELECT count(*) FROM events;'"
 ```

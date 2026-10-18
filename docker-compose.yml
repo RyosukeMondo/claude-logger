@@ -6,16 +6,39 @@ services:
     image: claude-logger-app:latest
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger
+      DATABASE_URL: postgresql://claude_logger:${CLAUDE_LOGGER_DB_PASSWORD:?set CLAUDE_LOGGER_DB_PASSWORD in .env next to this file}@claude-logger-db:5432/claude_logger
       BASE_PATH: /claude-logger
       TZ: Asia/Tokyo
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - claude-logger-network
-      - museum-network
+
+  # Own database (2026-10-18). Until then the app used a database inside museum-map's postgres container,
+  # so removing museum map took this app down.
+  db:
+    container_name: claude-logger-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: claude_logger
+      POSTGRES_USER: claude_logger
+      POSTGRES_PASSWORD: ${CLAUDE_LOGGER_DB_PASSWORD:?set CLAUDE_LOGGER_DB_PASSWORD in .env next to this file}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U claude_logger -d claude_logger"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - claude-logger-network
+
+volumes:
+  db-data:
+    name: claude-logger-db-data
 
 networks:
   claude-logger-network:
     name: claude-logger-network
-  museum-network:
-    external: true
-    name: museum-map_museum-network

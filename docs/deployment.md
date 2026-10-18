@@ -8,8 +8,8 @@
 | Public URL | `https://mondo-ai-studio.xvps.jp/claude-logger/` |
 | Reverse proxy | Caddy (`~/repos/reverse-proxy/Caddyfile`) |
 | App container | `claude-logger-app` (Next.js standalone, port 3000) |
-| Database | PostgreSQL on `museum-postgres` container, DB: `claude_logger` |
-| Docker networks | `claude-logger-network` + `museum-map_museum-network` (external) |
+| Database | own `claude-logger-db` container (postgres:16-alpine, volume `claude-logger-db-data`, DB/user `claude_logger`); password only in `~/repos/claude-logger/.env` on the VPS |
+| Docker networks | `claude-logger-network` |
 
 ## Deploy
 
@@ -41,18 +41,16 @@ services:
     image: claude-logger-app:latest   # no build: on the VPS
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger
+      DATABASE_URL: postgresql://claude_logger:${CLAUDE_LOGGER_DB_PASSWORD:?…}@claude-logger-db:5432/claude_logger
       BASE_PATH: /claude-logger
+    depends_on: {db: {condition: service_healthy}}
     networks:
       - claude-logger-network
-      - museum-network
+  db:   # claude-logger-db, see docker-compose.yml
 
 networks:
   claude-logger-network:
     name: claude-logger-network
-  museum-network:
-    external: true
-    name: museum-map_museum-network
 ```
 
 ## Caddy Reverse Proxy
@@ -72,14 +70,14 @@ ssh xserver_vps12_rmondo "cd ~/repos/reverse-proxy && docker compose exec caddy 
 
 ## Database
 
-PostgreSQL runs in the shared `museum-postgres` container (used by multiple projects).
+PostgreSQL runs in its own `claude-logger-db` container (since 2026-10-18; before, it shared museum-map's postgres).
 
 ```bash
 # Direct query
-ssh xserver_vps12_rmondo "docker exec museum-postgres psql -U museum -d claude_logger -c '<SQL>'"
+ssh xserver_vps12_rmondo "docker exec claude-logger-db psql -U claude_logger -d claude_logger -c '<SQL>'"
 
 # Interactive
-ssh xserver_vps12_rmondo "docker exec -it museum-postgres psql -U museum -d claude_logger"
+ssh xserver_vps12_rmondo "docker exec -it claude-logger-db psql -U claude_logger -d claude_logger"
 ```
 
 Schema is auto-migrated on app startup (`src/lib/db.ts` → `initSchema()`).

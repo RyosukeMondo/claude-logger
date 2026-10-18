@@ -29,11 +29,11 @@ curl -s https://mondo-ai-studio.xvps.jp/claude-logger/api/stats | python3 -m jso
 | SSH host | `xserver_vps12_rmondo` |
 | Repo path | `~/repos/claude-logger` |
 | Container | `claude-logger-app` (port 3000 internal) |
-| Database | `postgresql://museum:museum_dev_password@museum-postgres:5432/claude_logger` (shared museum-network) |
+| Database | own `claude-logger-db` (postgres:16-alpine, volume `claude-logger-db-data`); password only in `.env` on the VPS (`CLAUDE_LOGGER_DB_PASSWORD`) |
 | Reverse proxy | Caddy at `~/repos/reverse-proxy/Caddyfile` |
 | Public URL | `https://mondo-ai-studio.xvps.jp/claude-logger/` |
 | BASE_PATH | `/claude-logger` |
-| Docker networks | `claude-logger-network`, `museum-map_museum-network` (external) |
+| Docker networks | `claude-logger-network` |
 
 ## Caddy config (reference)
 The relevant Caddy block in `~/repos/reverse-proxy/Caddyfile`:

@@ -143,6 +143,9 @@ ssh "$HOST" 'bash -s' <<REMOTE
 set -euo pipefail
 cd "$REMOTE_DIR"
 
+# The database password lives only in .env on the VPS (never in git). Stop before changing anything without it.
+grep -q '^CLAUDE_LOGGER_DB_PASSWORD=.' .env 2>/dev/null || { echo "x .env lacks CLAUDE_LOGGER_DB_PASSWORD in \$PWD" >&2; exit 1; }
+
 # Pull first: if the registry is unreachable nothing below has changed yet.
 echo "~ pulling ${GHCR_IMAGE}:${SHA}"
 docker pull --quiet "${GHCR_IMAGE}:${SHA}" >/dev/null
