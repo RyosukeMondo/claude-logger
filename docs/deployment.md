@@ -8,7 +8,7 @@
 | Public URL | `https://mondo-ai-studio.xvps.jp/claude-logger/` |
 | Reverse proxy | Caddy (`~/repos/reverse-proxy/Caddyfile`) |
 | App container | `claude-logger-app` (Next.js standalone, port 3000) |
-| Database | own `claude-logger-db` container (postgres:16-alpine, volume `claude-logger-db-data`, DB/user `claude_logger`); password only in `~/repos/claude-logger/.env` on the VPS |
+| Database | own `claude-logger-db` container (postgres:16-alpine, volume `claude-logger-db-data`, DB/user `claude_logger`); password only in `~/repos/ai/claude-logger/.env` on the VPS |
 | Docker networks | `claude-logger-network` |
 
 ## Deploy

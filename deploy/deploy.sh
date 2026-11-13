@@ -23,7 +23,7 @@
 set -euo pipefail
 
 HOST="${HOST:-xserver_vps12_rmondo}"
-REMOTE_DIR="${REMOTE_DIR:-/home/rmondo/repos/claude-logger}"
+REMOTE_DIR="${REMOTE_DIR:-/home/rmondo/repos/ai/claude-logger}"
 NAME=claude-logger                       # GHCR package name
 LOCAL_NAME=claude-logger-app                # image name the compose file runs
 SERVICE=app                 # compose service to recreate

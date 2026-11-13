@@ -27,7 +27,7 @@ curl -s https://mondo-ai-studio.xvps.jp/claude-logger/api/stats | python3 -m jso
 | Component | Detail |
 |-----------|--------|
 | SSH host | `xserver_vps12_rmondo` |
-| Repo path | `~/repos/claude-logger` |
+| Repo path | `~/repos/ai/claude-logger` |
 | Container | `claude-logger-app` (port 3000 internal) |
 | Database | own `claude-logger-db` (postgres:16-alpine, volume `claude-logger-db-data`); password only in `.env` on the VPS (`CLAUDE_LOGGER_DB_PASSWORD`) |
 | Reverse proxy | Caddy at `~/repos/reverse-proxy/Caddyfile` |
