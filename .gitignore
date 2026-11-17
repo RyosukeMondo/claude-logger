@@ -17,3 +17,4 @@ next-env.d.ts
 # Written on the VPS by deploy/deploy.sh
 .deployed-sha
 .rollback-sha
+.claude/settings.local.json
