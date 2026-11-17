@@ -1,8 +1,9 @@
 import type { Pool } from "pg";
 import type { HookEvent, EventRecord } from "./types";
-import { extractUsername } from "./db";
+import { extractUsername, extractProjectName } from "./db";
 import { buildSummary } from "./summary";
 import { toLocalIso } from "./time";
+import { extractTokenUsage, calculateCost } from "./costs";
 
 /** Record a hook event. Upserts session, inserts event, returns event ID. */
 export async function recordEvent(pool: Pool, event: HookEvent): Promise<number> {
@@ -17,19 +18,21 @@ export async function recordEvent(pool: Pool, event: HookEvent): Promise<number>
   const ts = new Date().toISOString();
   const summary = buildSummary(event);
   const username = extractUsername(event);
+  const projectName = extractProjectName(cwd);
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     await client.query(
-      `INSERT INTO sessions (id, username, project_dir, started_at, permission_mode)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO sessions (id, username, project_dir, project_name, started_at, permission_mode)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT(id) DO UPDATE SET
          username = COALESCE(NULLIF(EXCLUDED.username, ''), sessions.username),
          project_dir = COALESCE(NULLIF(EXCLUDED.project_dir, ''), sessions.project_dir),
+         project_name = COALESCE(NULLIF(EXCLUDED.project_name, ''), sessions.project_name),
          permission_mode = COALESCE(EXCLUDED.permission_mode, sessions.permission_mode)`,
-      [session_id, username, cwd, ts, permission_mode ?? null]
+      [session_id, username, cwd, projectName, ts, permission_mode ?? null]
     );
 
     if (hook_event_name === "SessionStart") {
@@ -67,6 +70,22 @@ export async function recordEvent(pool: Pool, event: HookEvent): Promise<number>
         "UPDATE sessions SET tool_count = tool_count + 1 WHERE id = $1",
         [session_id]
       );
+    }
+
+    // Extract token usage from Stop events for cost tracking
+    if (hook_event_name === "Stop") {
+      const tokens = extractTokenUsage(event);
+      if (tokens.input_tokens > 0 || tokens.output_tokens > 0) {
+        const cost = calculateCost(tokens.input_tokens, tokens.output_tokens);
+        await client.query(
+          `UPDATE sessions SET
+             total_input_tokens = total_input_tokens + $1,
+             total_output_tokens = total_output_tokens + $2,
+             total_cost_usd = total_cost_usd + $3
+           WHERE id = $4`,
+          [tokens.input_tokens, tokens.output_tokens, cost, session_id]
+        );
+      }
     }
 
     await client.query("COMMIT");
@@ -123,28 +142,29 @@ export async function deleteEvent(pool: Pool, eventId: number): Promise<boolean>
   }
 }
 
-/** Get UserPromptSubmit timestamps grouped by session. Optionally filter by date. */
+/** Get UserPromptSubmit timestamps and text grouped by session. */
 export async function getPromptTimestamps(
   pool: Pool,
   sessionIds: string[],
   date?: string // YYYY-MM-DD, filters to that day
-): Promise<Map<string, number[]>> {
+): Promise<Map<string, { ts: number; text: string }[]>> {
   if (sessionIds.length === 0) return new Map();
 
   let query: string;
   let params: unknown[];
 
   if (date) {
-    // Convert JST date to UTC Date objects for node-postgres
     const dayStart = new Date(`${date}T00:00:00+09:00`);
     const dayEnd = new Date(`${date}T23:59:59.999+09:00`);
-    query = `SELECT session_id, timestamp FROM events
+    query = `SELECT session_id, timestamp, payload->>'prompt' as prompt_text, summary
+     FROM events
      WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
        AND timestamp >= $2 AND timestamp <= $3
      ORDER BY timestamp ASC`;
     params = [sessionIds, dayStart, dayEnd];
   } else {
-    query = `SELECT session_id, timestamp FROM events
+    query = `SELECT session_id, timestamp, payload->>'prompt' as prompt_text, summary
+     FROM events
      WHERE session_id = ANY($1) AND hook_event_name = 'UserPromptSubmit'
      ORDER BY timestamp ASC`;
     params = [sessionIds];
@@ -152,13 +172,14 @@ export async function getPromptTimestamps(
 
   const { rows } = await pool.query(query, params);
 
-  const map = new Map<string, number[]>();
+  const map = new Map<string, { ts: number; text: string }[]>();
   for (const r of rows) {
     const ts = r.timestamp instanceof Date
       ? r.timestamp.getTime()
       : new Date(r.timestamp).getTime();
+    const text = ((r.prompt_text ?? r.summary ?? "") as string).slice(0, 100);
     const arr = map.get(r.session_id) ?? [];
-    arr.push(ts);
+    arr.push({ ts, text });
     map.set(r.session_id, arr);
   }
   return map;

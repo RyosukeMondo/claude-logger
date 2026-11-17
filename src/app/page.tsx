@@ -1,13 +1,18 @@
 import { getPool } from "@/lib/db";
-import { listUsers, listSessions, getStats } from "@/lib/sessions";
+import { listUsers, listSessions, getStats, countSessions } from "@/lib/sessions";
 import { getPromptTimestamps } from "@/lib/events";
+import { listProjects } from "@/lib/projects";
 import { formatLocal } from "@/lib/time";
 import StatsBar from "@/components/StatsBar";
+import CostBar from "@/components/CostBar";
 import ToolUsageBar from "@/components/ToolUsageBar";
-import SessionTable from "@/components/SessionTable";
 import SessionTimeline from "@/components/SessionTimeline";
+import PaginatedSessionTable from "@/components/PaginatedSessionTable";
+import ProjectList from "@/components/ProjectList";
 import UserFilter from "@/components/UserFilter";
 import DateNav from "@/components/DateNav";
+import SearchBar from "@/components/SearchBar";
+import ExportButton from "@/components/ExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +26,20 @@ export default async function DashboardPage({
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today;
 
   const pool = await getPool();
-  const users = await listUsers(pool);
-  const stats = await getStats(pool, user);
-  const sessions = await listSessions(pool, 50, 0, user);
+  const [users, stats, sessions, total, projects] = await Promise.all([
+    listUsers(pool),
+    getStats(pool, user),
+    listSessions(pool, 50, 0, user),
+    countSessions(pool, user),
+    listProjects(pool, user),
+  ]);
 
   const promptTimestamps = await getPromptTimestamps(
     pool,
     sessions.map((s) => s.id),
     date
   );
-  const promptMap: Record<string, number[]> = {};
+  const promptMap: Record<string, { ts: number; text: string }[]> = {};
   for (const [k, v] of promptTimestamps) {
     promptMap[k] = v;
   }
@@ -38,16 +47,26 @@ export default async function DashboardPage({
   return (
     <>
       <UserFilter users={users} />
+      <SearchBar />
       <StatsBar stats={stats} />
+      <CostBar stats={stats} />
       <ToolUsageBar tools={stats.tool_usage} />
+      <ProjectList projects={projects} />
       <div className="panel">
         <div className="panel-header">
           <span>DATE</span>
-          <DateNav date={date} />
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <ExportButton />
+            <DateNav date={date} />
+          </div>
         </div>
       </div>
       <SessionTimeline sessions={sessions} promptMap={promptMap} date={date} />
-      <SessionTable sessions={sessions} />
+      <PaginatedSessionTable
+        initialSessions={sessions}
+        user={user}
+        hasMore={sessions.length < total}
+      />
     </>
   );
 }

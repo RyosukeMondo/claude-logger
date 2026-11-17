@@ -11,27 +11,31 @@ export async function listUsers(pool: Pool): Promise<string[]> {
   return rows.map((r) => r.username);
 }
 
-/** List sessions, most recent first. Optionally filter by username. */
+/** List sessions, most recent first. Optionally filter by username and/or project. */
 export async function listSessions(
   pool: Pool,
   limit = 50,
   offset = 0,
-  username?: string
+  username?: string,
+  project?: string
 ): Promise<Session[]> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
   if (username) {
-    const { rows } = await pool.query(
-      `SELECT * FROM sessions WHERE username = $1
-       ORDER BY COALESCE(started_at, '9999-01-01') DESC
-       LIMIT $2 OFFSET $3`,
-      [username, limit, offset]
-    );
-    return rows.map(toSession);
+    params.push(username);
+    conditions.push(`username = $${params.length}`);
   }
+  if (project) {
+    params.push(project);
+    conditions.push(`project_name = $${params.length}`);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  params.push(limit, offset);
   const { rows } = await pool.query(
-    `SELECT * FROM sessions
+    `SELECT * FROM sessions ${where}
      ORDER BY COALESCE(started_at, '9999-01-01') DESC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset]
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
   );
   return rows.map(toSession);
 }
@@ -48,6 +52,30 @@ export async function getSession(
   return rows[0] ? toSession(rows[0]) : null;
 }
 
+/** Count sessions. Optionally filter by username and/or project. */
+export async function countSessions(
+  pool: Pool,
+  username?: string,
+  project?: string
+): Promise<number> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (username) {
+    params.push(username);
+    conditions.push(`username = $${params.length}`);
+  }
+  if (project) {
+    params.push(project);
+    conditions.push(`project_name = $${params.length}`);
+  }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int as c FROM sessions ${where}`,
+    params
+  );
+  return rows[0].c;
+}
+
 /** Aggregate stats. Optionally filter by username. */
 export async function getStats(pool: Pool, username?: string): Promise<Stats> {
   const userSessionFilter = username
@@ -62,7 +90,11 @@ export async function getStats(pool: Pool, username?: string): Promise<Stats> {
   const params = username ? [username] : [];
 
   const sessRes = await pool.query(
-    `SELECT COUNT(*)::int as c FROM sessions ${userSessionFilter}`,
+    `SELECT COUNT(*)::int as c,
+            COALESCE(SUM(total_input_tokens), 0)::bigint as input_tokens,
+            COALESCE(SUM(total_output_tokens), 0)::bigint as output_tokens,
+            COALESCE(SUM(total_cost_usd), 0)::numeric as cost
+     FROM sessions ${userSessionFilter}`,
     params
   );
   const evtRes = await pool.query(
@@ -82,9 +114,13 @@ export async function getStats(pool: Pool, username?: string): Promise<Stats> {
     params
   );
 
+  const row = sessRes.rows[0];
   return {
-    total_sessions: sessRes.rows[0].c,
+    total_sessions: row.c,
     total_events: evtRes.rows[0].c,
+    total_input_tokens: Number(row.input_tokens),
+    total_output_tokens: Number(row.output_tokens),
+    total_cost_usd: Number(row.cost),
     tool_usage: toolRes.rows.map((r) => ({ name: r.tool_name, count: r.count })),
     recent_activity: recentRes.rows.map((r) => ({
       ...r,
@@ -98,12 +134,16 @@ function toSession(r: Record<string, unknown>): Session {
     id: r.id as string,
     username: (r.username as string) ?? "",
     project_dir: (r.project_dir as string) ?? "",
+    project_name: (r.project_name as string) ?? "",
     started_at: r.started_at ? toLocalIso(r.started_at) : null,
     ended_at: r.ended_at ? toLocalIso(r.ended_at) : null,
     permission_mode: (r.permission_mode as string) ?? null,
     event_count: (r.event_count as number) ?? 0,
     prompt_count: (r.prompt_count as number) ?? 0,
     tool_count: (r.tool_count as number) ?? 0,
+    total_input_tokens: Number(r.total_input_tokens ?? 0),
+    total_output_tokens: Number(r.total_output_tokens ?? 0),
+    total_cost_usd: Number(r.total_cost_usd ?? 0),
   };
 }
 

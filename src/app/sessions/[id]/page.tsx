@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getPool } from "@/lib/db";
 import { getSession } from "@/lib/sessions";
 import { getEvents } from "@/lib/events";
 import PromptList from "@/components/PromptList";
-import Timeline from "@/components/Timeline";
+import FilterableTimeline from "@/components/FilterableTimeline";
 import ShareButton from "@/components/ShareButton";
 
 export const dynamic = "force-dynamic";
@@ -43,23 +44,50 @@ export default async function SessionPage({
               </div>
               <div className="stat-label">MODE</div>
             </div>
+            {(session.total_input_tokens > 0 || session.total_output_tokens > 0) && (
+              <>
+                <div>
+                  <div className="stat-value" style={{ color: "var(--amber)" }}>
+                    ${session.total_cost_usd.toFixed(4)}
+                  </div>
+                  <div className="stat-label">EST. COST</div>
+                </div>
+                <div>
+                  <div className="stat-value" style={{ fontSize: 16 }}>
+                    {fmtTokens(session.total_input_tokens + session.total_output_tokens)}
+                  </div>
+                  <div className="stat-label">TOKENS</div>
+                </div>
+              </>
+            )}
           </div>
           <div
             style={{ marginTop: 12, fontSize: 12, color: "var(--gray-lt)" }}
           >
             USER: <span style={{ color: "var(--cyan)" }}>{session.username || "unknown"}</span>
             <br />
-            PROJECT: {session.project_dir || "unknown"}
+            PROJECT: {session.project_name || session.project_dir || "unknown"}
             <br />
             STARTED: {session.started_at ?? "unknown"}
             <br />
             {session.ended_at && <>ENDED: {session.ended_at}</>}
           </div>
-          <ShareButton sessionId={session.id} />
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <ShareButton sessionId={session.id} />
+            <Link href={`/sessions/${id}/conversation`} className="btn btn-amber">
+              [CONVERSATION VIEW]
+            </Link>
+          </div>
         </div>
       </div>
       <PromptList events={events} />
-      <Timeline events={events} />
+      <FilterableTimeline events={events} />
     </>
   );
+}
+
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
 }

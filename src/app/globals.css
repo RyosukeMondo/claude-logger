@@ -59,6 +59,7 @@ a:hover { text-decoration: underline; text-shadow: 0 0 6px rgba(0,212,255,0.4); 
   color: var(--amber);
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 .panel-body { padding: 16px; }
 
@@ -165,10 +166,356 @@ nav a:hover, nav a.active { color: var(--green); text-shadow: 0 0 6px var(--gree
 }
 .st-bar:hover .st-bar-label { color: var(--bg); }
 
+/* === Feature 1: Search === */
+.search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+}
+.search-input::placeholder { color: var(--gray); }
+.search-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--green-dim);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+.search-results {
+  border: 1px solid var(--green-dim);
+  border-top: none;
+  background: var(--bg-panel);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.search-result-item {
+  display: block;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--bg-hl);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+.search-result-item:hover { background: var(--bg-hl); text-decoration: none; }
+.search-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray);
+  flex-shrink: 0;
+}
+.search-dot.prompt { background: var(--cyan); }
+.search-dot.tool { background: var(--amber); }
+
+/* === Feature 3: Analytics === */
+.trend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0;
+  font-size: 12px;
+}
+.trend-date {
+  width: 50px;
+  text-align: right;
+  color: var(--gray-lt);
+  flex-shrink: 0;
+}
+.trend-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.trend-bar-track {
+  height: 8px;
+  background: rgba(0, 255, 65, 0.05);
+}
+.trend-bar-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+.trend-counts {
+  width: 120px;
+  text-align: right;
+  color: var(--gray-lt);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+/* heatmap */
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.heatmap-row {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.heatmap-label {
+  width: 32px;
+  font-size: 10px;
+  color: var(--gray-lt);
+  text-align: right;
+  flex-shrink: 0;
+}
+.heatmap-hour-label {
+  width: 20px;
+  height: 14px;
+  font-size: 9px;
+  color: var(--gray);
+  text-align: center;
+  flex-shrink: 0;
+}
+.heatmap-cell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--bg-hl);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.heatmap-cell:hover {
+  border-color: var(--green-dim);
+}
+
+/* === Feature 5: Conversation View === */
+.conv-turn {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--bg-hl);
+}
+.conv-turn:last-child { border-bottom: none; margin-bottom: 0; }
+
+.conv-user, .conv-assistant { margin-bottom: 12px; }
+.conv-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.conv-role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: bold;
+}
+.conv-role-user {
+  background: var(--cyan);
+  color: var(--bg);
+}
+.conv-role-assistant {
+  background: var(--green-dim);
+  color: var(--bg);
+}
+.conv-time { font-size: 10px; color: var(--gray-lt); }
+
+.conv-bubble {
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.conv-bubble-user {
+  background: var(--bg);
+  border-left: 3px solid var(--cyan);
+  color: var(--white);
+}
+.conv-bubble-assistant {
+  background: var(--bg);
+  border-left: 3px solid var(--green-dim);
+  color: var(--green);
+}
+
+.conv-tools { margin: 8px 0 8px 16px; }
+.conv-tool-detail {
+  margin: 4px 0;
+  border: 1px solid var(--bg-hl);
+}
+.conv-tool-summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+}
+.conv-tool-summary:hover { background: var(--bg-hl); }
+.conv-tool-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  background: var(--amber);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.conv-tool-badge.conv-tool-failed { background: var(--red); }
+.conv-tool-text {
+  color: var(--green);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.conv-tool-code {
+  padding: 8px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--bg-hl);
+}
+.conv-tool-code pre {
+  color: var(--gray-lt);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* === Feature 8: Event Filters === */
+.filter-bar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+.filter-label {
+  color: var(--gray-lt);
+  margin-right: 4px;
+  letter-spacing: 1px;
+}
+.filter-btn {
+  background: transparent;
+  border: 1px solid var(--gray);
+  color: var(--gray-lt);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.1s;
+}
+.filter-btn:hover { border-color: var(--green-dim); color: var(--green); }
+.filter-btn.active {
+  background: var(--green-dim);
+  color: var(--bg);
+  border-color: var(--green-dim);
+}
+
+/* === Feature: Prompt Explorer === */
+.prompt-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.prompt-select {
+  background: var(--bg);
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 12px;
+  outline: none;
+}
+.prompt-select:focus { border-color: var(--cyan); }
+.prompt-select option { background: var(--bg-panel); color: var(--green); }
+.prompt-card {
+  border: 1px solid var(--bg-hl);
+  margin-bottom: 8px;
+  background: var(--bg-panel);
+  transition: border-color 0.15s;
+}
+.prompt-card:hover { border-color: var(--green-dim); }
+.prompt-card.expanded { border-color: var(--cyan); }
+.prompt-card-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--gray-lt);
+  cursor: pointer;
+}
+.prompt-card-header:hover { background: var(--bg-hl); }
+.prompt-card-time { color: var(--gray-lt); flex-shrink: 0; }
+.prompt-card-user { color: var(--cyan); flex-shrink: 0; }
+.prompt-card-project { color: var(--amber); flex-shrink: 0; }
+.prompt-card-expand { margin-left: auto; color: var(--gray); font-size: 12px; }
+.prompt-card-preview {
+  padding: 8px 12px;
+  color: var(--white);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-left: 3px solid var(--cyan);
+  margin: 0 12px;
+  background: var(--bg);
+  cursor: pointer;
+}
+.prompt-card-metrics {
+  display: flex;
+  gap: 20px;
+  padding: 8px 12px;
+  font-size: 10px;
+}
+.prompt-metric-label { color: var(--gray-lt); letter-spacing: 1px; }
+.prompt-metric-val { color: var(--cyan); }
+.prompt-card-details {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--bg-hl);
+}
+.prompt-card-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.prompt-tool-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  background: var(--bg-hl);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+.prompt-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 @media (max-width: 700px) {
   .timeline { padding-left: 20px; }
   .timeline::before { left: 8px; }
   .tl-time { position: static; width: auto; text-align: left; }
   .tl-ev { padding-left: 20px; }
   .tl-dot { left: -14px; }
+  .heatmap-cell { width: 12px; height: 12px; }
+  .heatmap-hour-label { width: 12px; font-size: 7px; }
 }

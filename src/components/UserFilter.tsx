@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export default function UserFilter({ users }: { users: string[] }) {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
   const current = params.get("user");
 
   if (users.length <= 1) return null;
@@ -17,7 +18,7 @@ export default function UserFilter({ users }: { users: string[] }) {
       sp.delete("user");
     }
     const qs = sp.toString();
-    router.push(qs ? `/?${qs}` : "/");
+    router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
   return (

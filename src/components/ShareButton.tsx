@@ -18,15 +18,15 @@ export default function ShareButton({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <button className="btn btn-amber" onClick={handleShare} disabled={loading}>
+    <>
+      <button className="btn" onClick={handleShare} disabled={loading}>
         {loading ? "[CREATING...]" : "[SHARE SESSION]"}
       </button>
       {url && (
-        <span className="share-badge" style={{ marginLeft: 12 }}>
+        <span className="share-badge" style={{ marginLeft: 8 }}>
           {url}
         </span>
       )}
-    </div>
+    </>
   );
 }

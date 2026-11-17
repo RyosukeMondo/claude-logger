@@ -21,14 +21,15 @@ const USER_PALETTE = [
 interface PromptTick {
   sessionId: string;
   username: string;
-  promptIndex: number; // 1-based index within session
+  promptIndex: number;
+  promptText: string;
   startMs: number;
   endMs: number;
 }
 
 interface Props {
   sessions: Session[];
-  promptMap: Record<string, number[]>;
+  promptMap: Record<string, { ts: number; text: string }[]>;
   date: string;
 }
 
@@ -39,17 +40,18 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
 
   const allTicks: PromptTick[] = [];
   for (const s of sessions) {
-    const timestamps = promptMap[s.id];
-    if (!timestamps || timestamps.length === 0) continue;
+    const items = promptMap[s.id];
+    if (!items || items.length === 0) continue;
 
-    const sorted = [...timestamps].sort((a, b) => a - b);
-    sorted.forEach((ts, i) => {
+    const sorted = [...items].sort((a, b) => a.ts - b.ts);
+    sorted.forEach((item, i) => {
       allTicks.push({
         sessionId: s.id,
         username: s.username || s.id.slice(0, 8),
         promptIndex: i + 1,
-        startMs: ts,
-        endMs: ts + PROMPT_DURATION_MS,
+        promptText: item.text,
+        startMs: item.ts,
+        endMs: item.ts + PROMPT_DURATION_MS,
       });
     });
   }
@@ -138,7 +140,7 @@ export default function SessionTimeline({ sessions, promptMap, date }: Props) {
                   borderColor: c.border,
                   boxShadow: `0 0 4px ${c.glow}`,
                 }}
-                title={`${t.username} #${t.promptIndex} — ${fmtShort(t.startMs)}`}
+                title={`${t.username} #${t.promptIndex} — ${fmtShort(t.startMs)}\n${t.promptText}`}
               >
                 <span className="st-bar-label" style={{ color: c.text }}>#{t.promptIndex}</span>
               </Link>
